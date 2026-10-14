@@ -143,14 +143,62 @@ inspection rule.
 
 ### "May warrant inspection" indicator
 
-A preliminary, rule-based comparison of each part of a field with the rest of the **same field on
-the same day**:
+A preliminary, rule-based check with **three parts**. All three skip the outer ring of pixels,
+because those mix turf with whatever is outside the outline.
 
-1. Skip the outer ring of pixels (they mix turf with whatever is outside the outline).
-2. Find the field's median NDVI.
-3. A pixel is **notably low** if its NDVI is more than **0.20** below that median.
-4. The field is flagged if notably low pixels are at least **5%** of the checked turf and at
-   least **5 pixels** (500 m²).
+**1. Color: does the turf look deep green?**
+- NGRDI = (Green − Red) / (Green + Red) uses Sentinel-2's 10 m visible bands B03 and B04. It is a
+  published visible-light greenness index (Tucker 1979).
+- What the values mean:
+  - **below 0:** more red than green light, so the turf looks yellow, tan, or brown
+  - **0 to 0.15:** pale green
+  - **above 0.15:** deep green
+- A pixel is flagged **yellow** if NGRDI is under **0.15**, so only deep green counts as good.
+- This was added because pale spots that people can see (Gates North, Aurora) passed the NDVI
+  checks.
+
+**2. Healthy-turf baseline: compares the field with healthy turf.**
+- A pixel is **below the baseline** if its NDVI is under **0.5** or its NDMI is under **0.0**.
+  These show as **orange** on the map.
+
+If at least **50%** of the checked turf fails check 1 or check 2, the result is **"Most of this
+field may warrant inspection"**.
+
+**3. Within-field: compares each spot with the rest of the same field on the same day.** This
+finds **patches**.
+- A pixel is **notably low** if its NDVI is more than **0.20** below the field's median.
+  These show as **pink** on the map.
+
+Otherwise, any check reports an area if it covers at least **5%** of the checked turf and at least
+**5 pixels** (500 m²). The result is then **"Some areas may warrant inspection"**.
+
+**Why 0.15 for color (a strict choice):** we measured the share of pixels below each possible
+line:
+
+| Field | below 0 | below 0.05 | below 0.10 | **below 0.15** |
+|---|---|---|---|---|
+| Memorial Park, deep green (2026-08-05) | 0% | 0–1% | 1–4% | **1–5%** |
+| DSG Park south (2026-08-20) | 1% | 4% | 12% | **20%** |
+| Gates North, pale spots (2025-06-01) | 0% | 7% | 20% | **36%** |
+| Gates North (2026-08-05) | 5% | 17% | 33% | **52%** |
+| DSG Park east (2026-08-20) | 7% | 26% | 48% | **64%** |
+| Village Greens (2026-08-05) | 22% | 51% | 81% | **96%** |
+
+At 0.15, only very lush turf passes. Many fields that NDVI says are actively growing get flagged
+because they *look* pale. The app shows the NDVI numbers too, so a person can see both.
+
+**Why both checks:** at first we only had the within-field check. But a field that is dry
+*everywhere* has nothing to compare against, so it always said "No area stands out". It also
+failed when most of a field was dry and only a few spots were green, because the field's
+median was dry too.
+
+**Why 0.5 and 0.0:** we measured real pixels (summer 2026, interior pixels only):
+- **Healthy watered turf at six Colorado fields:** 95% of pixels had NDVI 0.57 or higher and
+  NDMI 0.10 or higher.
+- **A dry, unwatered meadow:** median NDVI 0.18, NDMI −0.14.
+- **Artificial turf:** NDVI 0.19.
+
+The cutoffs sit in the gap between healthy turf and dry ground.
 
 **Why 0.20:** on turf that looked uniformly healthy at Village Greens (2026-08-05), NDVI varied
 from pixel to pixel by about 0.05–0.08 (standard deviation), so 0.20 is roughly three times
@@ -163,7 +211,11 @@ normal variation.
 | Minimum clear pixels for results | 20 (2,000 m²) | `indices.py` `MIN_VALID_PIXELS` |
 | Largest area | 5 km per side | `sentinel.py` `MAX_PIXELS_PER_SIDE` |
 | Notably low NDVI | 0.20 below field median | `indices.py` `LOW_NDVI_MARGIN` |
-| Flag a field | ≥5% and ≥5 pixels | `indices.py` `FLAG_MIN_FRACTION`, `FLAG_MIN_PIXELS` |
+| Flag an area | ≥5% and ≥5 pixels | `indices.py` `FLAG_MIN_FRACTION`, `FLAG_MIN_PIXELS` |
+| "Looks deep green" color line | NGRDI 0.15 (student's choice) | `indices.py` `YELLOW_NGRDI` |
+| Healthy-turf baseline | NDVI 0.5, NDMI 0.0 | `indices.py` `BASELINE_NDVI`, `BASELINE_NDMI` |
+| Whole-field problem | ≥50% below baseline | `indices.py` `WHOLE_FIELD_FRACTION` |
+| Season the baseline applies to | May–October (warning otherwise) | `indices.py` `BASELINE_MONTHS` |
 | Warnings | <80% clear, tile >10% cloudy, <20 NDMI measurements, median NDVI <0.3 | `indices.py` `WARN_*` |
 | Map color scales | NDVI 0→0.8, NDMI −0.4→0.4 | `render.py` |
 
@@ -178,10 +230,19 @@ normal variation.
 * **One snapshot:** each analysis uses one satellite image. It is not a trend over time.
 * **Cloud masking is imperfect:** thin haze or small shadows can slip through. Check the
   true-color layer.
-* **Within-field comparison only:** a problem affecting the **whole** field evenly will not stand
-  out (a uniformly dry meadow returned "No area stands out").
+* **The baseline is local and seasonal:** it was measured on watered Colorado sports turf in
+  summer 2026.
+  - Other grass types may sit naturally below it.
+  - So may grass that is still greening up in spring or dormant in winter. Village Greens turf
+    in early April 2026 had a median NDVI of 0.53, and 33% of it was below the baseline.
+  - The app warns when an image is from outside May–October.
 * **Artificial turf** looks green in photos but has low NDVI (Cherry Creek HS stadium: 0.17). The
   app warns about this but cannot evaluate artificial turf.
+* **Color is strict and can be fooled:**
+  - The yellow check flags pale-but-growing grass, by design.
+  - Grass also looks paler for harmless reasons: seed heads in late spring, fresh mowing, the
+    sun angle, or haze.
+  - Sprinkler gaps smaller than a 10 m pixel blend with green turf around them.
 * **Not a diagnosis:** dormancy, mowing, wear, disease, and irrigation problems can look the same
   from space. The app shows where to look; a person decides what is wrong.
 * **Map alignment:** the analysis picture is placed using longitude/latitude. This is accurate for
@@ -195,14 +256,19 @@ Real data, summer 2026 (June 1 – August 31; the app picks the least-cloudy ima
 
 | Field | Image date | Clear pixels | NDVI | NDMI | Indicator |
 |---|---|---|---|---|---|
-| Village Greens Park, Greenwood Village (turf only) | 2026-08-05 | 112/112 | 0.70 | 0.20 | No area stands out |
+| Village Greens Park, Greenwood Village (turf only) | 2026-08-05 | 112/112 | 0.70 | 0.20 | Most of this field (96% pale by color; NDVI checks pass) |
 | Village Greens, ball fields **including** dirt infields | 2026-08-05 | n/a | 0.69 median | n/a | May warrant inspection: pink exactly on the 4 infields |
-| Same ball fields, 4 infields **excluded** | 2026-08-05 | 561/561 (175 excluded) | n/a | n/a | No area stands out (4% low, was 15–16%) |
-| Dick's Sporting Goods Park, Commerce City (south fields) | 2026-08-20 | 306/306 | 0.84 | 0.26 | No area stands out |
-| Dick's Sporting Goods Park (east fields) | 2026-08-20 | 289/289 | 0.75 | 0.27 | No area stands out |
-| Memorial Park, Colorado Springs (NW field) | 2026-08-05 | 160/160 | 0.88 | 0.29 | No area stands out |
-| Memorial Park (middle field) | 2026-08-05 | 208/208 | 0.90 | 0.33 | No area stands out |
+| Same ball fields, 4 infields **excluded** | 2026-08-05 | 561/561 (175 excluded) | n/a | n/a | No area stands out (4% low, was 15–16%); not re-run with the color check |
+| Dick's Sporting Goods Park, Commerce City (south fields) | 2026-08-20 | 306/306 | 0.84 | 0.26 | Some areas (20% pale by color) |
+| Dick's Sporting Goods Park (east fields) | 2026-08-20 | 289/289 | 0.75 | 0.27 | Most of this field (64% pale by color) |
+| Memorial Park, Colorado Springs (NW field) | 2026-08-05 | 160/160 | 0.88 | 0.29 | Some areas (5% pale, right at the line) |
+| Memorial Park (middle field) | 2026-08-05 | 208/208 | 0.90 | 0.33 | No area stands out (1% pale) |
+| Gates North, Aurora (turf near 6743 S Chambers Way) | 2025-06-01 | n/a | 0.82 median | 0.35 median | Some areas (36% pale, on the east side, matching the pale area in the June 2025 aerial photo) |
+| Gates North (same box) | 2026-08-05 | n/a | 0.78 median | 0.30 median | Most of this field (52% pale) |
 | Cherry Creek HS stadium (artificial turf) | 2026-08-05 | 65/65 | 0.17 | −0.09 | Artificial-turf warning |
+| Village Greens North Park dry meadow | 2026-08-05 | n/a | 0.18 | −0.14 | Most of this field may warrant inspection (100% below baseline) |
+| Dry meadow + watered turf at its south end | 2026-08-05 | n/a | 0.23 median | −0.11 median | Most of this field (77% below baseline; the turf stays unflagged) |
+| Village Greens turf, early spring | 2026-04-05 | n/a | 0.53 median | 0.08 median | Some areas (33% below baseline) + season warning |
 | Parking lot (Stage 3 check) | 2026-08-05 | 108/108 | 0.10 | −0.03 | n/a |
 | Cherry Creek Reservoir (water) | 2026-08-05 | 360/360 | −0.69 | −0.55 | n/a |
 

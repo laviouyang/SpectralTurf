@@ -48,6 +48,32 @@ LOW_NDVI_MARGIN = 0.20
 FLAG_MIN_FRACTION = 0.05
 FLAG_MIN_PIXELS = 5
 
+# Healthy-turf BASELINE - also OUR project's choices, NOT published standards.
+# Comparing a field only with itself can't see a problem that covers the whole field,
+# so we also compare every pixel with fixed values measured on real turf.
+# Measured 2026 (interior pixels, real Sentinel-2 data):
+#   healthy irrigated turf, 6 Colorado fields, Aug:  NDVI 5th percentile 0.57-0.86,
+#                                                    NDMI 5th percentile 0.10-0.28
+#   dry, unwatered meadow (Village Greens North Park): NDVI median 0.18, NDMI -0.14
+#   artificial turf (Cherry Creek HS):                 NDVI median 0.19, NDMI -0.09
+# The cutoffs sit in the gap between healthy turf and dry ground.
+BASELINE_NDVI = 0.5
+BASELINE_NDMI = 0.0
+# Color check: does the pixel LOOK deep green, or yellow / pale, the way a person sees it?
+# NGRDI = (Green - Red) / (Green + Red), a published visible-light greenness index
+# (Tucker 1979). 10 m bands (B03, B04). Below 0 = more red than green (truly yellow,
+# tan, or brown). Between 0 and 0.15 = pale or yellowish green.
+# The student chose 0.15: only DEEP green counts as good. Measured share of pixels below
+# 0.15: Memorial Park (deep green) 1-5%; DSG south 20%; Gates North (pale spots) 36% on
+# 2025-06-01 and 52% on 2026-08-05; DSG east 64%; Village Greens 96%; dry meadow 100%.
+# Strict on purpose: it flags many real fields that NDVI says are growing.
+YELLOW_NGRDI = 0.15
+# If at least half the checked turf is below the baseline, call it a whole-field problem.
+WHOLE_FIELD_FRACTION = 0.5
+# The baseline was measured on summer and early-fall turf. Grass that is still green-ing
+# up in spring or dormant in winter is naturally lower, so we warn outside these months.
+BASELINE_MONTHS = range(5, 11)  # May to October
+
 
 def normalized_difference(a, b):
     """
@@ -70,6 +96,11 @@ def compute_ndvi(b04, b08):
 
 def compute_ndmi(b8a, b11):
     return normalized_difference(b8a, b11)
+
+
+def compute_ngrdi(b03, b04):
+    """Visible greenness: green light vs red light. Below 0 looks yellow/brown."""
+    return normalized_difference(b03, b04)
 
 
 def valid_pixel_mask(scl, data_mask):
@@ -95,9 +126,10 @@ def summarize(values, mask):
     }
 
 
-def analyze_bands(b04, b08, b8a, b11, scl, data_mask):
+def analyze_bands(b04, b08, b8a, b11, scl, data_mask, b03=None):
     """
     Turn raw band arrays into the results the app reports.
+    b03 (green) is used for the "looks yellow" color check; without it that check is skipped.
     All arrays are on the same 10 m grid. B8A, B11 and SCL are really 20 m
     data that Sentinel Hub repeated into 2x2 blocks (nearest neighbor) -
     this does NOT create any new detail.
@@ -125,7 +157,8 @@ def analyze_bands(b04, b08, b8a, b11, scl, data_mask):
 
     ndvi_stats = summarize(ndvi, valid)
     ndmi_stats = summarize(ndmi, valid)
-    inspection = inspection_indicator(ndvi, valid, has_data)
+    ngrdi = compute_ngrdi(b03, b04) if b03 is not None else None
+    inspection = inspection_indicator(ndvi, ndmi, valid, has_data, ngrdi)
 
     if ndvi_stats["valid_pixels"] < MIN_VALID_PIXELS:
         status = "insufficient_evidence"
@@ -149,6 +182,7 @@ def analyze_bands(b04, b08, b8a, b11, scl, data_mask):
             "rejected_by_reason": rejected,
         },
         "ndvi": ndvi_stats,
+        "ngrdi": summarize(ngrdi, valid) if ngrdi is not None else None,
         "ndmi": {
             **ndmi_stats,
             "note": "NDMI uses 20 m bands. Each 20 m pixel covers four 10 m grid cells, "
@@ -239,36 +273,68 @@ def interior_mask(inside):
     return interior
 
 
-def inspection_masks(ndvi, valid, inside):
+def inspection_masks(ndvi, ndmi, valid, inside, ngrdi=None):
     """
-    Which pixels the rule checked, and which of those are notably low.
+    Which pixels the rules checked, and which of those are
+      yellow         - LOOK yellow or pale instead of deep green (NGRDI below YELLOW_NGRDI)
+      below_baseline - below the healthy-turf NDVI/NDMI baseline (compared with fixed values)
+      low            - notably less green than the rest of this field (compared with itself)
     Used for both the numbers and the map picture, so they always match.
     """
     ndvi = np.asarray(ndvi, dtype=np.float64)
+    ndmi = np.asarray(ndmi, dtype=np.float64)
     checked = valid & interior_mask(inside) & np.isfinite(ndvi)
+    nothing = np.zeros_like(checked)
     if checked.sum() < MIN_VALID_PIXELS:
-        return {"checked": checked, "low": np.zeros_like(checked), "median": None, "cutoff": None}
+        return {"checked": checked, "low": nothing, "below_ndvi": nothing, "below_ndmi": nothing,
+                "below_baseline": nothing, "yellow": nothing, "median": None, "cutoff": None}
     median = float(np.median(ndvi[checked]))
     cutoff = median - LOW_NDVI_MARGIN
     low = checked & (ndvi < cutoff)
-    return {"checked": checked, "low": low, "median": median, "cutoff": cutoff}
+    below_ndvi = checked & (ndvi < BASELINE_NDVI)
+    below_ndmi = checked & (ndmi < BASELINE_NDMI)  # NaN NDMI compares False: never flagged
+    yellow = nothing if ngrdi is None else checked & (np.asarray(ngrdi, dtype=np.float64) < YELLOW_NGRDI)
+    return {"checked": checked, "low": low, "below_ndvi": below_ndvi, "below_ndmi": below_ndmi,
+            "below_baseline": below_ndvi | below_ndmi, "yellow": yellow,
+            "median": median, "cutoff": cutoff}
 
 
-def inspection_indicator(ndvi, valid, inside):
-    """Rule-based, preliminary: does any part of this field stand out as less green?"""
-    masks = inspection_masks(ndvi, valid, inside)
+def _is_flagged(n_pixels, fraction):
+    """Big enough to report: at least FLAG_MIN_FRACTION of the turf AND FLAG_MIN_PIXELS pixels."""
+    return n_pixels >= FLAG_MIN_PIXELS and fraction >= FLAG_MIN_FRACTION
+
+
+def inspection_indicator(ndvi, ndmi, valid, inside, ngrdi=None):
+    """
+    Rule-based, preliminary: does this field, or part of it, look less healthy?
+    Three checks on the same pixels:
+      1. Color: does the turf look yellow or pale instead of deep green?
+      2. Baseline: is the turf below NDVI/NDMI values measured on healthy turf?
+      3. Within-field: is a spot much less green than the rest of the field?
+    Checks 1 and 2 compare with fixed values, so they also find whole-field problems.
+    """
+    masks = inspection_masks(ndvi, ndmi, valid, inside, ngrdi)
     n_checked = int(masks["checked"].sum())
     rule = (
-        f"A 10 m pixel counts as notably low if its NDVI is more than {LOW_NDVI_MARGIN} below "
-        f"this field's own median NDVI on the same day. The field is flagged if those pixels are at "
-        f"least {FLAG_MIN_FRACTION:.0%} of the checked turf and at least {FLAG_MIN_PIXELS} pixels. "
-        "The outer ring of pixels is skipped because it mixes turf with whatever is outside the "
-        "outline. These numbers are this project's choices, not a validated standard."
+        "Three checks, using only pixels away from the outline's edge (edge pixels mix turf with "
+        "whatever is outside). (1) Color: a 10 m pixel counts as yellow or pale (not deep green) "
+        f"if NGRDI = (green - red) / (green + red) is below {YELLOW_NGRDI}. Below 0 means more red "
+        f"than green light (truly yellow or brown); 0 to {YELLOW_NGRDI} is pale green. Deep-green "
+        "Memorial Park fields had at most 5% of pixels below this line. (2) Baseline: a pixel is below the healthy-turf baseline if its NDVI is "
+        f"under {BASELINE_NDVI} or its NDMI is under {BASELINE_NDMI}. Healthy watered turf we "
+        "measured at six Colorado fields in summer 2026 stayed above both; a dry, unwatered meadow "
+        "was far below. NDMI is 20 m data, so it can only flag areas in blocks of about 20 m. "
+        f"(3) Within-field: a pixel is notably low if its NDVI is more than {LOW_NDVI_MARGIN} below "
+        f"this field's own median. If at least {WHOLE_FIELD_FRACTION:.0%} of the turf fails check 1 "
+        "or 2, the whole field is flagged. Otherwise each check reports an area if it is at least "
+        f"{FLAG_MIN_FRACTION:.0%} of the checked turf and at least {FLAG_MIN_PIXELS} pixels. "
+        "All of these numbers are this project's choices, not a validated standard."
     )
 
     if masks["median"] is None:
         return {
             "status": "insufficient_evidence",
+            "scope": None,
             "headline": "Insufficient evidence",
             "reason": (
                 f"Only {n_checked} clear pixels away from the outline's edge "
@@ -278,47 +344,112 @@ def inspection_indicator(ndvi, valid, inside):
             "pixels_checked": n_checked,
         }
 
-    n_low = int(masks["low"].sum())
-    low_fraction = n_low / n_checked
+    ndvi = np.asarray(ndvi, dtype=np.float64)
+    ndmi = np.asarray(ndmi, dtype=np.float64)
+    median_ndmi = float(np.nanmedian(ndmi[masks["checked"]]))
+
+    def share(mask):
+        n = int(mask.sum())
+        return n, n / n_checked
+
+    n_yellow, yellow_fraction = share(masks["yellow"])  # check 1: color
+    n_below, below_fraction = share(masks["below_baseline"])  # check 2: NDVI/NDMI baseline
+    n_low, low_fraction = share(masks["low"])  # check 3: within-field
+    n_bad, bad_fraction = share(masks["yellow"] | masks["below_baseline"])  # fails check 1 or 2
+
     details = {
         "rule": rule,
         "pixels_checked": n_checked,
         "field_median_ndvi": round(masks["median"], 3),
+        "field_median_ndmi": round(median_ndmi, 3),
+        "color": {
+            "checked": ngrdi is not None,
+            "ngrdi_cutoff": YELLOW_NGRDI,
+            "yellow_pixels": n_yellow,
+            "yellow_fraction": round(yellow_fraction, 3),
+            "yellow_area_m2": n_yellow * 100,  # each pixel is 10 m x 10 m
+        },
+        "baseline": {
+            "ndvi": BASELINE_NDVI,
+            "ndmi": BASELINE_NDMI,
+            "below_pixels": n_below,
+            "below_fraction": round(below_fraction, 3),
+            "below_ndvi_fraction": round(int(masks["below_ndvi"].sum()) / n_checked, 3),
+            "below_ndmi_fraction": round(int(masks["below_ndmi"].sum()) / n_checked, 3),
+            "below_area_m2": n_below * 100,
+        },
         "cutoff_ndvi": round(masks["cutoff"], 3),
         "low_pixels": n_low,
         "low_fraction": round(low_fraction, 3),
-        "low_area_m2": n_low * 100,  # each pixel is 10 m x 10 m
+        "low_area_m2": n_low * 100,
     }
+    medians = f"median NDVI {masks['median']:.2f}, median NDMI {median_ndmi:.2f}"
+    baseline = f"NDVI {BASELINE_NDVI} / NDMI {BASELINE_NDMI}"
 
-    if n_low >= FLAG_MIN_PIXELS and low_fraction >= FLAG_MIN_FRACTION:
-        low_mean = float(np.asarray(ndvi)[masks["low"]].mean())
+    # One sentence per check that found something big enough to report.
+    parts = []
+    if _is_flagged(n_yellow, yellow_fraction):
+        parts.append(
+            f"{yellow_fraction:.0%} of the checked turf (about {n_yellow * 100:,} m²) looks yellow or "
+            "pale instead of deep green (yellow on the Inspection map)."
+        )
+    if _is_flagged(n_below, below_fraction):
+        parts.append(
+            f"{below_fraction:.0%} (about {n_below * 100:,} m²) is below the healthy-turf baseline "
+            f"({baseline}) (orange on the Inspection map)."
+        )
+    if _is_flagged(n_low, low_fraction):
+        low_mean = float(ndvi[masks["low"]].mean())
+        parts.append(
+            f"{low_fraction:.0%} (about {n_low * 100:,} m²) is notably less green than the rest of "
+            f"this field: average NDVI {low_mean:.2f} there (pink on the Inspection map)."
+        )
+
+    # Most of the field looks yellow or is below the baseline: a whole-field problem.
+    if bad_fraction >= WHOLE_FIELD_FRACTION:
         return {
             "status": "may_warrant_inspection",
-            "headline": "May warrant inspection",
+            "scope": "whole_field",
+            "headline": "Most of this field may warrant inspection",
             "reason": (
-                f"{low_fraction:.0%} of the checked turf (about {n_low * 100:,} m²) is notably less "
-                f"green than the rest of this field: average NDVI {low_mean:.2f} there, compared with "
-                f"{masks['median']:.2f} for the field as a whole. These spots are pink on the "
-                "Inspection map layer."
+                f"{bad_fraction:.0%} of the checked turf looks yellow or pale, or is below the "
+                f"healthy-turf baseline. {' '.join(parts)} This field: {medians}. Healthy watered "
+                "turf we measured in summer 2026 had median NDVI 0.64 to 0.92."
             ),
+            **details,
+        }
+
+    if parts:
+        return {
+            "status": "may_warrant_inspection",
+            "scope": "some_areas",
+            "headline": "Some areas may warrant inspection",
+            "reason": f"{' '.join(parts)} The field as a whole: {medians}.",
             **details,
         }
 
     return {
         "status": "no_area_stands_out",
+        "scope": None,
         "headline": "No area stands out",
         "reason": (
-            f"Only {low_fraction:.0%} of the checked turf is notably less green than the rest of "
-            "the field. This compares parts of the field with each other, so a problem affecting "
-            "the whole field evenly would not stand out."
+            f"This field ({medians}) looks deep green, is above the healthy-turf baseline ({baseline}), "
+            f"and only {low_fraction:.0%} of the checked turf is notably less green than the rest "
+            "of the field."
         ),
         **details,
     }
 
 
-def quality_warnings(results, tile_cloud_cover):
+def quality_warnings(results, tile_cloud_cover, observation_month=None):
     """Plain-language warnings about how much to trust one analysis."""
     warnings = []
+    if observation_month is not None and observation_month not in BASELINE_MONTHS:
+        warnings.append(
+            "This image is from outside May-October. The healthy-turf baseline was measured on "
+            "summer turf, and grass that is dormant or still greening up is naturally below it, "
+            "so a low result this time of year may be normal for the season."
+        )
     pixels = results["pixels"]
 
     reasons = "; ".join(pixels["rejected_by_reason"]) or "invalid values"

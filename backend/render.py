@@ -40,7 +40,9 @@ REJECTED_RGBA = (150, 150, 150, 170)  # see-through gray
 
 # Inspection layer colors.
 LOW_RGBA = (231, 41, 138, 255)  # pink: notably less green than the rest of the field
-CHECKED_RGBA = (255, 255, 255, 90)  # faint white: checked, not notably low
+YELLOW_RGBA = (255, 230, 0, 255)  # yellow: looks yellow or pale instead of deep green
+BELOW_BASELINE_RGBA = (253, 141, 60, 255)  # orange: below the healthy-turf baseline
+CHECKED_RGBA = (255, 255, 255, 90)  # faint white: checked, fine on both checks
 # Edge ring (not checked) and outside the area stay transparent.
 
 # Same brightening as the /api/test/truecolor image. Only for viewing.
@@ -76,12 +78,18 @@ def true_color(b04, b03, b02, inside):
     return rgba
 
 
-def inspection_picture(ndvi, valid, inside):
-    """Pink = notably low, faint white = checked and fine, gray = rejected (cloud etc.)."""
-    masks = indices.inspection_masks(ndvi, valid, inside)
+def inspection_picture(ndvi, ndmi, valid, inside, ngrdi=None):
+    """
+    Yellow = looks yellow/brown, orange = below the healthy-turf baseline (drawn on top),
+    pink = notably less green than the rest of the field (drawn on top of both),
+    faint white = checked and fine, gray = rejected (cloud etc.).
+    """
+    masks = indices.inspection_masks(ndvi, ndmi, valid, inside, ngrdi)
     rgba = np.zeros(np.shape(ndvi) + (4,), dtype=np.uint8)
     rgba[inside & ~valid] = REJECTED_RGBA
     rgba[masks["checked"]] = CHECKED_RGBA
+    rgba[masks["yellow"]] = YELLOW_RGBA
+    rgba[masks["below_baseline"]] = BELOW_BASELINE_RGBA
     rgba[masks["low"]] = LOW_RGBA
     return rgba
 
@@ -99,11 +107,12 @@ def make_images(bands):
     valid = indices.valid_pixel_mask(bands["SCL"], bands["dataMask"])
     ndvi = indices.compute_ndvi(bands["B04"], bands["B08"])
     ndmi = indices.compute_ndmi(bands["B8A"], bands["B11"])
+    ngrdi = indices.compute_ngrdi(bands["B03"], bands["B04"])
     return {
         "ndvi": to_data_url(colorize(ndvi, valid, inside, NDVI_COLORS)),
         "ndmi": to_data_url(colorize(ndmi, valid, inside, NDMI_COLORS)),
         "true_color": to_data_url(true_color(bands["B04"], bands["B03"], bands["B02"], inside)),
-        "inspection": to_data_url(inspection_picture(ndvi, valid, inside)),
+        "inspection": to_data_url(inspection_picture(ndvi, ndmi, valid, inside, ngrdi)),
     }
 
 
@@ -114,5 +123,7 @@ def color_scales():
         "ndmi": NDMI_COLORS,
         "rejected": "rgba(150, 150, 150, 0.67)",
         "inspection_low": "rgb(231, 41, 138)",
+        "inspection_baseline": "rgb(253, 141, 60)",
+        "inspection_yellow": "rgb(255, 230, 0)",
         "inspection_checked": "rgba(255, 255, 255, 0.35)",
     }

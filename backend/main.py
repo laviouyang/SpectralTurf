@@ -84,7 +84,8 @@ def run_analysis(geometry, start, end, max_cloud, exclusions=()):
     n_excluded = indices.apply_exclusions(bands, exclusions, (west, south, east, north))
 
     results = indices.analyze_bands(
-        bands["B04"], bands["B08"], bands["B8A"], bands["B11"], bands["SCL"], bands["dataMask"]
+        bands["B04"], bands["B08"], bands["B8A"], bands["B11"], bands["SCL"], bands["dataMask"],
+        b03=bands["B03"],
     )
     return {
         "observation": scene,
@@ -92,7 +93,9 @@ def run_analysis(geometry, start, end, max_cloud, exclusions=()):
         "box": {"west": west, "south": south, "east": east, "north": north},
         **results,
         "excluded": {"areas": len(exclusions), "pixels": n_excluded},
-        "warnings": indices.quality_warnings(results, scene["tile_cloud_cover"]),
+        "warnings": indices.quality_warnings(
+            results, scene["tile_cloud_cover"], int(scene["date"][5:7])  # month from "YYYY-MM-DD"
+        ),
         "images": render.make_images(bands),
         "color_scales": render.color_scales(),
         "source": "Copernicus Sentinel-2 Level-2A via Copernicus Data Space Ecosystem (Sentinel Hub)",

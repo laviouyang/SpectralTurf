@@ -69,15 +69,18 @@ function VisitChecklist() {
 
 // One plain next action for each outcome. It says where to look, never what the cause is.
 const NEXT_STEP = {
-  may_warrant_inspection:
-    'Visit the pink spots and compare them with greener parts of the field. The checklist below lists what to look for.',
+  whole_field:
+    'Walk the whole field in person, and if you can, compare it with a well-kept field nearby. A low reading across most of a field can come from dormancy, dry conditions, heavy wear, or a surface that is not living grass; only an in-person look can tell which. The checklist below lists what to look for.',
+  some_areas:
+    'Visit the yellow, orange, and pink areas on the Inspection map and compare them with greener parts of the field. The checklist below lists what to look for.',
   no_area_stands_out:
-    'No single spot needs a closer look. If the whole field looks poor to you, inspect it in person, because this rule cannot detect problems that affect the entire field.',
+    'No area needs a closer look based on this image. If the field looks poor to you anyway, trust your eyes and inspect it in person.',
   insufficient_evidence:
     'Draw a larger area of turf, or choose a different date range with fewer clouds, and analyze again.',
 };
 
 function InspectionCard({ inspection, onShowOnMap }) {
+  const baseline = inspection.baseline;
   const style = {
     may_warrant_inspection: 'inspect-flag',
     no_area_stands_out: 'inspect-calm',
@@ -89,11 +92,11 @@ function InspectionCard({ inspection, onShowOnMap }) {
       <p className="inspect-headline">{inspection.headline}</p>
       <p>{inspection.reason}</p>
       <p className="next-step">
-        <strong>Your next step:</strong> {NEXT_STEP[inspection.status]}
+        <strong>Your next step:</strong> {NEXT_STEP[inspection.scope ?? inspection.status]}
       </p>
       {inspection.status === 'may_warrant_inspection' && (
         <button type="button" className="secondary" onClick={onShowOnMap}>
-          Show the pink spots on the map
+          Show the flagged areas on the map
         </button>
       )}
       <p className="muted">
@@ -103,12 +106,28 @@ function InspectionCard({ inspection, onShowOnMap }) {
       <details>
         <summary>How this rule works</summary>
         <p>{inspection.rule}</p>
-        {inspection.field_median_ndvi !== undefined && (
-          <p>
-            For this field: median NDVI {inspection.field_median_ndvi}, so pixels below{' '}
-            {inspection.cutoff_ndvi} count as notably low. {inspection.low_pixels} of{' '}
-            {inspection.pixels_checked} checked pixels are below that.
-          </p>
+        {baseline && (
+          <>
+            {inspection.color?.checked && (
+              <p>
+                <strong>Color check:</strong> {inspection.color.yellow_pixels} of{' '}
+                {inspection.pixels_checked} checked pixels (
+                {Math.round(inspection.color.yellow_fraction * 100)}%) look yellow or pale instead of
+                deep green (NGRDI below {inspection.color.ngrdi_cutoff}).
+              </p>
+            )}
+            <p>
+              <strong>Baseline check:</strong> {baseline.below_pixels} of {inspection.pixels_checked}{' '}
+              checked pixels ({Math.round(baseline.below_fraction * 100)}%) are below NDVI {baseline.ndvi}{' '}
+              or NDMI {baseline.ndmi}. Below the NDVI line: {Math.round(baseline.below_ndvi_fraction * 100)}%.
+              Below the NDMI line: {Math.round(baseline.below_ndmi_fraction * 100)}%.
+            </p>
+            <p>
+              <strong>Within-field check:</strong> this field&apos;s median NDVI is{' '}
+              {inspection.field_median_ndvi}, so pixels below {inspection.cutoff_ndvi} count as notably
+              low. {inspection.low_pixels} of {inspection.pixels_checked} checked pixels are below that.
+            </p>
+          </>
         )}
       </details>
       {inspection.status !== 'insufficient_evidence' && <VisitChecklist />}
@@ -156,8 +175,14 @@ export default function Results({ result, layer, onLayerChange }) {
       {layer === 'inspection' && (
         <div className="legend">
           <p className="muted">
+            <span className="swatch" style={{ background: scales.inspection_yellow }} /> Yellow: looks
+            yellow or pale instead of deep green (satellite color)
+            <br />
+            <span className="swatch" style={{ background: scales.inspection_baseline }} /> Orange: below
+            the healthy-turf baseline (NDVI or NDMI lower than healthy watered turf)
+            <br />
             <span className="swatch" style={{ background: scales.inspection_low }} /> Pink: notably less
-            green than the rest of this field
+            green than the rest of this field (drawn on top of orange)
             <br />
             <span className="swatch" style={{ background: scales.inspection_checked }} /> Faint white:
             checked, not notably low
@@ -212,6 +237,14 @@ export default function Results({ result, layer, onLayerChange }) {
               <td>{ndvi.median}</td>
               <td>{ndvi.min} to {ndvi.max}</td>
             </tr>
+            {result.ngrdi && (
+              <tr>
+                <td>NGRDI (visible green vs. yellow, 10 m)</td>
+                <td>{result.ngrdi.mean}</td>
+                <td>{result.ngrdi.median}</td>
+                <td>{result.ngrdi.min} to {result.ngrdi.max}</td>
+              </tr>
+            )}
             <tr>
               <td>NDMI (leaf moisture, 20 m)</td>
               <td>{ndmi.mean}</td>
@@ -240,6 +273,12 @@ export default function Results({ result, layer, onLayerChange }) {
         <strong>NDMI</strong> compares near-infrared and shortwave-infrared light, which is absorbed
         by water in leaves. Higher values suggest more water in the vegetation; negative values suggest
         drier plants or surfaces that are not vegetation.
+      </p>
+      <p>
+        <strong>NGRDI</strong> compares green and red light, like your eyes do. Below 0, grass
+        reflects more red than green and looks yellow, tan, or brown. From 0 to 0.15 it looks pale
+        green. This app counts only values above 0.15 as deep green. That line is a strict project
+        choice, so some fields that are still growing (by NDVI) get flagged.
       </p>
       <p>
         A low value is a reason to look at the field in person. It does not say why: dormancy, recent
@@ -288,7 +327,7 @@ export default function Results({ result, layer, onLayerChange }) {
         <li>Pixels on the edge of your outline can mix turf with dirt, pavement, or trees, which pulls values toward those surfaces.</li>
         <li>This is a single snapshot from one day, not a trend over time.</li>
         <li>Cloud masking can miss thin haze or small shadows.</li>
-        <li>The inspection indicator compares parts of one field with each other, so a problem affecting the whole field evenly will not stand out.</li>
+        <li>The healthy-turf baseline was measured on watered Colorado sports turf in summer 2026. Other grass types, or grass that is dormant in spring or winter, can be naturally below it.</li>
         <li>It cannot diagnose disease, prove drought, or say how much to water.</li>
       </ul>
 

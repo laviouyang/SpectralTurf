@@ -149,8 +149,35 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
       existing shape were swallowed (0 vertices) → SHAPE_STYLE/EXCLUDE_STYLE `interactive: false`.
       Verified in Chrome: ✂ polygon + ✂ rectangle inside outline → 2 exclusions kept; new outline
       clears exclusions; Edit/Save still works with exclusions kept.
+      HEALTHY-TURF BASELINE (2026-10-14, student request: "it always says 0%... comparing to itself"):
+      within-field rule could never flag an evenly dry field, or a mostly-dry field with green spots
+      (median is dry). Added absolute check in indices.py: pixel below baseline if NDVI < 0.5 OR
+      NDMI < 0.0 (BASELINE_NDVI/NDMI, project choices from real data: healthy turf p5 NDVI 0.57-0.86,
+      NDMI 0.10-0.28 at 6 fields; dry meadow 0.18/-0.14). >=50% below (WHOLE_FIELD_FRACTION) →
+      scope "whole_field", headline "Most of this field may warrant inspection"; else either check
+      >=5% & >=5 px → scope "some_areas". inspection.baseline {...} added. Map: orange = below
+      baseline, pink on top. Season warning outside May-Oct (BASELINE_MONTHS; April turf 0.53 →
+      33% below). Frontend NEXT_STEP keyed by scope. Tests 25/25. Real API: healthy fields unchanged
+      (No area stands out); meadow → whole field; meadow+turf → 77%, turf stays unflagged.
+      Awaiting student hand-test.
+      GATES NORTH / COLOR CHECK (2026-10-14): student saw obvious yellow spots at Gates North
+      (Aurora, turf W of 6743 S Chambers Way, ~-104.8146,39.5913,-104.8121,39.5931) that passed.
+      Found: Esri photo dated 2025-06-01 (Esri identify service); Sentinel same day NDVI 0.78-0.82
+      (healthy); 39-date averaging found no persistent low spots in turf (first "signal" was a path).
+      Sentinel true color DID show the pale east side: NGRDI east 0.14 vs west 0.27. Added check 1
+      "color": NGRDI=(B03-B04)/(B03+B04) (Tucker 1979), compute_ngrdi; YELLOW_NGRDI = 0.15 —
+      STUDENT CHOSE this strict line ("only deep green is good") after seeing a cutoff table
+      (0/0.05/0.10/0.15). Effects: Memorial 1-5% (NW = 5.4% → "Some areas"), DSG south 20%,
+      Gates 36% (2025, yellow on east side matching photo) / 52% (2026), DSG east 64%, VG 96%
+      → many growing fields now flagged by color; NDVI checks still pass for them. Whole-field =
+      ≥50% fail color OR baseline. Map yellow (under orange, under pink). analyze_bands(b03=None)
+      optional; response adds `ngrdi` stats and inspection.color {...}. Tests 29/29.
+      STUDENT VERIFIED 2026-10-14: at first thought yellow was "on the greener parts" — they were
+      comparing the 2026-08-05 analysis with the 2025-06-01 Esri photo (pattern had moved). With
+      dates set to 2025-06-01..2025-06-01 it matched: "everything works as normal now".
+      Idea offered, not built: show the Esri photo date next to the satellite date.
 
 ## Known gaps / TODO
 - Overlay drawn as lon/lat-grid image on Web Mercator map: fine for field-sized areas, slight
   stretch possible near the 5 km max.
-- README not written yet (required: install, env vars, run, data sources, limitations, components).
+- GitHub: https://github.com/laviouyang/SpectralTurf (pushed 2026-10-14). Handoff summary: `docs/HANDOFF.md`.

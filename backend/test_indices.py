@@ -16,6 +16,7 @@ from indices import (
     points_in_polygon,
     compute_ndmi,
     compute_ndvi,
+    compute_ngrdi,
     inspection_indicator,
     interior_mask,
     quality_warnings,
@@ -113,14 +114,15 @@ print("PASS  inspection rule skips the outer ring of pixels")
 # 12. Even field (NDVI 0.7 everywhere) -> no area stands out.
 field = np.full((12, 12), 0.7)
 everywhere = np.ones((12, 12), dtype=bool)
-r = inspection_indicator(field, everywhere, everywhere)
+wet = np.full((12, 12), 0.2)  # healthy NDMI, above the baseline
+r = inspection_indicator(field, wet, everywhere, everywhere)
 assert r["status"] == "no_area_stands_out" and r["low_pixels"] == 0
 print("PASS  even field -> 'No area stands out'")
 
 # 13. A 3x3 brown patch (NDVI 0.3) in the middle -> flagged: 9 px of 100 checked = 9%.
 patchy = field.copy()
 patchy[5:8, 5:8] = 0.3
-r = inspection_indicator(patchy, everywhere, everywhere)
+r = inspection_indicator(patchy, wet, everywhere, everywhere)
 assert r["status"] == "may_warrant_inspection"
 assert r["low_pixels"] == 9 and r["pixels_checked"] == 100 and r["low_area_m2"] == 900
 print("PASS  3x3 low patch -> 'May warrant inspection', 9 px = 900 m²")
@@ -128,12 +130,12 @@ print("PASS  3x3 low patch -> 'May warrant inspection', 9 px = 900 m²")
 # 14. The same low values ONLY on the edge ring -> ignored (likely mixed edge pixels).
 edgy = field.copy()
 edgy[0, :] = 0.3
-r = inspection_indicator(edgy, everywhere, everywhere)
+r = inspection_indicator(edgy, wet, everywhere, everywhere)
 assert r["status"] == "no_area_stands_out"
 print("PASS  low values only on the edge -> ignored")
 
 # 15. Too small to check -> insufficient evidence (never a guess).
-r = inspection_indicator(np.full((4, 4), 0.7), np.ones((4, 4), bool), np.ones((4, 4), bool))
+r = inspection_indicator(np.full((4, 4), 0.7), np.full((4, 4), 0.2), np.ones((4, 4), bool), np.ones((4, 4), bool))
 assert r["status"] == "insufficient_evidence"
 print("PASS  tiny area -> inspection 'Insufficient evidence'")
 
@@ -159,7 +161,7 @@ def field_bands():
 def inspect(bands):
     ndvi = compute_ndvi(bands["B04"], bands["B08"])
     valid = valid_pixel_mask(bands["SCL"], bands["dataMask"])
-    return inspection_indicator(ndvi, valid, np.asarray(bands["dataMask"]) > 0)
+    return inspection_indicator(ndvi, wet, valid, np.asarray(bands["dataMask"]) > 0)
 
 assert inspect(field_bands())["status"] == "may_warrant_inspection"
 bands = field_bands()
@@ -167,5 +169,66 @@ infield = {"type": "Polygon", "coordinates": [[[5, 4], [8, 4], [8, 7], [5, 7], [
 n = apply_exclusions(bands, [infield], (0, 0, 12, 12))
 assert n == 9 and inspect(bands)["status"] == "no_area_stands_out"
 print("PASS  dirt patch flagged -> excluded (9 px) -> 'No area stands out'")
+
+# 19. The WHOLE field is evenly dry (NDVI 0.25, NDMI -0.1). Comparing the field with itself
+#     finds nothing, but the healthy-turf baseline flags the whole field.
+r = inspection_indicator(np.full((12, 12), 0.25), np.full((12, 12), -0.1), everywhere, everywhere)
+assert r["low_pixels"] == 0  # the within-field check alone would have missed it
+assert r["status"] == "may_warrant_inspection" and r["scope"] == "whole_field"
+assert r["baseline"]["below_fraction"] == 1.0
+print("PASS  evenly dry field -> 'Most of this field may warrant inspection'")
+
+# 20. Mostly dry with a few green spots: the median is dry, so the green spots don't make the
+#     dry part look "normal". The baseline still flags the whole field.
+spotty = np.full((12, 12), 0.3)
+spotty[2:5, 2:5] = 0.8
+r = inspection_indicator(spotty, wet, everywhere, everywhere)
+assert r["scope"] == "whole_field"
+print("PASS  dry field with green spots -> still flagged as a whole-field problem")
+
+# 21. Green (NDVI 0.7) but leaf moisture below the baseline everywhere -> flagged by NDMI.
+r = inspection_indicator(field, np.full((12, 12), -0.05), everywhere, everywhere)
+assert r["scope"] == "whole_field" and r["baseline"]["below_ndmi_fraction"] == 1.0
+assert r["baseline"]["below_ndvi_fraction"] == 0.0
+print("PASS  low NDMI alone -> flagged")
+
+# 22. A 3x3 dry patch in healthy turf is 'some areas', not the whole field.
+r = inspection_indicator(patchy, wet, everywhere, everywhere)
+assert r["scope"] == "some_areas" and r["baseline"]["below_pixels"] == 9
+print("PASS  small dry patch -> 'Some areas may warrant inspection'")
+
+# 23. Outside May-October, warn that the baseline was measured on summer turf.
+assert any("May-October" in w for w in quality_warnings(clear, 0, observation_month=3))
+assert not any("May-October" in w for w in quality_warnings(clear, 0, observation_month=7))
+print("PASS  winter/spring image -> season warning")
+
+# 24. Color check: NGRDI = (green - red) / (green + red). More red than green -> below 0 (yellow).
+assert abs(compute_ngrdi([0.08], [0.06])[0] - 0.1429) < 0.001  # green grass
+assert compute_ngrdi([0.07], [0.08])[0] < 0  # yellow/tan: more red than green
+print("PASS  NGRDI: green grass > 0, yellow grass < 0")
+
+# 25. Green-looking field with a 3x3 yellow patch (NDVI still fine) -> 'some areas', yellow.
+green = np.full((12, 12), 0.25)  # deep green (above the 0.15 cutoff)
+yellow_patch = green.copy()
+yellow_patch[5:8, 5:8] = -0.03
+r = inspection_indicator(field, wet, everywhere, everywhere, yellow_patch)
+assert r["scope"] == "some_areas" and r["color"]["yellow_pixels"] == 9
+assert r["baseline"]["below_pixels"] == 0 and r["low_pixels"] == 0  # only the color check sees it
+print("PASS  yellow patch (NDVI fine) -> 'Some areas', found by the color check")
+
+# 26. The whole field looks yellow, even though NDVI/NDMI are fine -> whole-field problem.
+r = inspection_indicator(field, wet, everywhere, everywhere, np.full((12, 12), -0.02))
+assert r["scope"] == "whole_field" and r["color"]["yellow_fraction"] == 1.0
+print("PASS  whole field yellow -> 'Most of this field may warrant inspection'")
+
+# 26b. Pale green (NGRDI 0.10, like Gates North's pale spots) also counts: only deep green is good.
+r = inspection_indicator(field, wet, everywhere, everywhere, np.full((12, 12), 0.10))
+assert r["scope"] == "whole_field"
+print("PASS  pale green (NGRDI 0.10) counts as yellow with the 0.15 cutoff")
+
+# 27. Green everywhere on all checks -> no area stands out.
+r = inspection_indicator(field, wet, everywhere, everywhere, green)
+assert r["status"] == "no_area_stands_out" and r["color"]["yellow_pixels"] == 0
+print("PASS  green on every check -> 'No area stands out'")
 
 print("\nAll tests passed.")
