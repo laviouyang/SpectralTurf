@@ -1,0 +1,337 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2a24;
+  background: #f4f6f4;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.header {
+  padding: 12px 20px;
+  background: #1f5e3b;
+  color: white;
+}
+.header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+.header p {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Sidebar on the left, map fills the rest. */
+.layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  width: 400px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+  background: white;
+  border-right: 1px solid #d8ded9;
+}
+.sidebar section {
+  margin-bottom: 18px;
+}
+.sidebar h2 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+
+.map {
+  flex: 1;
+  min-height: 300px;
+}
+
+/* Search */
+.search form {
+  display: flex;
+  gap: 6px;
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #b9c3bc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #1f5e3b;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+.exclude-box {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px dashed #8a948e;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.exclude-box p {
+  margin: 0 0 8px;
+}
+.exclude-box p:last-child {
+  margin: 8px 0 0;
+}
+/* The ✂ Exclude buttons on the map */
+.exclude-control a {
+  font-size: 13px;
+  letter-spacing: -1px;
+  color: #333;
+}
+.link-button {
+  padding: 0;
+  background: none;
+  color: #1f5e3b;
+  text-decoration: underline;
+  font-size: inherit;
+}
+button.secondary {
+  background: #e7ece8;
+  color: #1f2a24;
+}
+.search-results {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+.search-results button {
+  width: 100%;
+  margin-bottom: 4px;
+  text-align: left;
+  background: #eef3ef;
+  color: #1f2a24;
+  font-size: 0.85rem;
+}
+.search-message {
+  font-size: 0.85rem;
+  margin: 6px 0 0;
+}
+.attribution {
+  font-size: 0.75rem;
+  color: #66736b;
+  margin: 6px 0 0;
+}
+
+/* Selected area */
+.steps,
+.facts,
+.problems {
+  padding-left: 20px;
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+}
+.problems {
+  color: #a10e0e;
+}
+.ok {
+  color: #1f6b3a;
+  font-size: 0.9rem;
+}
+.muted {
+  color: #66736b;
+  font-size: 0.85rem;
+}
+details {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+pre {
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px;
+  background: #f4f6f4;
+  font-size: 0.75rem;
+}
+/* Analyze */
+.dates {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.dates label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  gap: 2px;
+}
+.dates input {
+  padding: 6px;
+  border: 1px solid #b9c3bc;
+  border-radius: 6px;
+}
+.problems-box {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 4px solid #a10e0e;
+  background: #fbeaea;
+  font-size: 0.9rem;
+}
+.results {
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+.results p {
+  margin: 0 0 6px;
+}
+.stats {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.stats th,
+.stats td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #e1e6e2;
+  text-align: left;
+}
+/* Results */
+.results h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+.results h4 {
+  margin: 16px 0 6px;
+  font-size: 0.95rem;
+}
+.layer-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0;
+}
+.layer-choice label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.legend {
+  margin-bottom: 10px;
+}
+.legend-bar {
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #c7cfc9;
+}
+.legend-labels,
+.legend-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+.legend-ends {
+  color: #66736b;
+}
+.legend p {
+  margin: 4px 0 0;
+}
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: middle;
+  border: 1px solid #999;
+}
+.warnings {
+  padding-left: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+.warnings li {
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border-left: 4px solid #c98a00;
+  background: #fff6e0;
+}
+/* Inspection indicator card */
+.inspect-card {
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 6px solid;
+}
+.inspect-card p {
+  margin: 0 0 8px;
+}
+.inspect-headline {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.next-step {
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+}
+.inspect-flag {
+  border-color: #e7298a;
+  background: #fdeef6;
+}
+.inspect-calm {
+  border-color: #1f6b3a;
+  background: #eaf5ee;
+}
+.inspect-unknown {
+  border-color: #8a948e;
+  background: #f0f2f1;
+}
+.inspect-card details,
+.checklist {
+  margin-top: 6px;
+}
+.checklist ul {
+  padding-left: 20px;
+  margin: 6px 0 0;
+}
+/* Keep each satellite pixel a sharp square on the map (no smoothing = no invented detail). */
+.pixel-image {
+  image-rendering: pixelated;
+}
+.limits p {
+  font-size: 0.85rem;
+  color: #3d4a42;
+}
+
+/* Narrow screens (phones): map on top, sidebar below. */
+@media (max-width: 800px) {
+  .app {
+    height: auto;
+  }
+  .layout {
+    flex-direction: column-reverse;
+  }
+  .sidebar {
+    width: 100%;
+    border-right: none;
+  }
+  .map {
+    height: 60vh;
+  }
+}

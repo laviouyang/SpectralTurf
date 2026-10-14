@@ -1,0 +1,11 @@
+# Secrets - never upload these (second safety net; backend/.gitignore also lists .env)
+.env
+**/.env
+
+# Installed packages and build output
+node_modules/
+dist/
+venv/
+.venv/
+__pycache__/
+*.pyc

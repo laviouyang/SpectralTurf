@@ -1,0 +1,11 @@
+# Secrets - never upload these
+.env
+
+# Python clutter
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Test images saved during development
+*.png
