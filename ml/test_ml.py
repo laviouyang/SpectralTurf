@@ -101,8 +101,67 @@ def step1_dataset_checks():
         check("14. photos with GPS location are pointed out", any("GPS" in w for w in warnings))
 
 
+def fake_training_set(tmp):
+    """2 generated images per label at each of 3 'sites'. Only for checking the code runs."""
+    sources = {"healthy": "TEST_IMAGE_green.png", "dry_stressed": "TEST_IMAGE_straw.png",
+               "worn_bare": "TEST_IMAGE_soil.png", "non_turf": "TEST_IMAGE_gray.png"}
+    lines, files = [], []
+    for site in ["Test Site 1", "Test Site 2", "Test Site 3"]:
+        for label, source in sources.items():
+            for n in range(2):
+                name = f"TEST_{site[-1]}_{label}_{n}.png"
+                lines.append(f"{name},{label},{site},2026-07-01,generated test image")
+                files.append((label, name, source))
+    return make_dataset(tmp, lines, files)
+
+
+def run_quietly(function, *args):
+    """Run a script's main() and capture what it prints. Numbers from generated
+    images are meaningless, so the tests never show them."""
+    import contextlib
+    import io
+
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        code = function(*args)
+    return code, printed.getvalue()
+
+
+def step2_zero_shot():
+    import numpy as np
+
+    import clip_model
+    import zero_shot
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = make_dataset(tmp, [], [])
+        code, out = run_quietly(zero_shot.main, root)
+        check("15. zero_shot.py with no photos explains instead of crashing",
+              code == 0 and "No usable labeled photos" in out)
+
+    vectors = clip_model.embed_images([dataset.open_image(TEST_IMAGES / "TEST_IMAGE_green.png")] * 3)
+    check("16. CLIP turns each photo into 512 numbers of length 1",
+          vectors.shape == (3, 512) and np.allclose(np.linalg.norm(vectors, axis=1), 1, atol=1e-4))
+    probabilities = clip_model.zero_shot_probabilities(vectors)
+    check("17. zero-shot gives 4 probabilities per photo that add up to 1",
+          probabilities.shape == (3, 4) and np.allclose(probabilities.sum(axis=1), 1, atol=1e-5))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = fake_training_set(tmp)
+        code, out = run_quietly(zero_shot.main, root)
+        check("18. zero_shot.py runs and prints accuracy + confusion matrix",
+              code == 0 and "Accuracy:" in out and "Confusion matrix" in out)
+        check("19. embeddings are cached", (root / "embeddings.npz").exists())
+        code, out = run_quietly(zero_shot.main, root)
+        check("20. second run uses the cache", "Computing CLIP embeddings" not in out)
+
+
 if __name__ == "__main__":
     if not (TEST_IMAGES / "TEST_IMAGE_green.png").exists():
         sys.exit("Run first:  python backend/test_images/make_test_images.py")
     step1_dataset_checks()
+    if "--with-model" in sys.argv:
+        step2_zero_shot()
+    else:
+        print("(Skipping the CLIP model tests. Add --with-model to run them.)")
     print(f"\nAll {passed} ml tests passed.")

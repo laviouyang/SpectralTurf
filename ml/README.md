@@ -60,10 +60,25 @@ Phone photos usually store the GPS location where they were taken. The photo fil
 **git-ignored** and stay on this computer. Only `photos.csv` and the empty folders go to GitHub.
 Back the photos up somewhere private (e.g. a USB stick).
 
+## Step 2: zero-shot baseline (no training)
+
+```powershell
+python ml/zero_shot.py
+```
+CLIP compares every labeled photo to one sentence per class (in `ml/clip_model.py`,
+`PROMPTS`) and picks the closest. It prints the **accuracy**, how many photos are below the
+0.60 confidence cutoff, and a **confusion matrix** (rows = your label, columns = CLIP's
+answer). Write the accuracy down: it is the baseline the trained model must beat.
+A low number is fine and expected; CLIP was never shown our labels.
+
+- The first run downloads the CLIP model once (about 600 MB).
+- Each photo's embedding is saved in `ml/embeddings.npz` (git-ignored), so later runs are fast.
+
 ## Tests
 ```powershell
 python backend/test_images/make_test_images.py   # once: makes generated test images
-python ml/test_ml.py
+python ml/test_ml.py                # quick checks
+python ml/test_ml.py --with-model   # also the CLIP tests (slower, loads the model)
 ```
 The tests use **generated** images (flat colors in `backend/test_images/`) inside a temporary
 folder. They never touch `ml/data`, and any numbers they produce mean nothing.
