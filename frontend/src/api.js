@@ -35,7 +35,8 @@ function setToken(token) {
 // Send one request to the backend and return its JSON, or throw a readable error.
 async function request(path, { method = 'GET', body } = {}) {
   const headers = {};
-  if (body) headers['Content-Type'] = 'application/json';
+  const isForm = body instanceof FormData; // a file upload: the browser sets its own type
+  if (body && !isForm) headers['Content-Type'] = 'application/json';
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -44,7 +45,7 @@ async function request(path, { method = 'GET', body } = {}) {
     response = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: isForm ? body : body ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new Error(
@@ -69,6 +70,16 @@ async function request(path, { method = 'GET', body } = {}) {
 // a summary to your history under "name".
 export function analyzeArea(geometry, exclude, start, end, name = '') {
   return request('/api/analyze', { method: 'POST', body: { geometry, exclude, start, end, name } });
+}
+
+// ---- Photo AI ----
+
+// Send one photo; get back the AI's suggestion (label, confidence, all 4 probabilities).
+export function analyzePhoto(file, allowTraining) {
+  const form = new FormData();
+  form.append('photo', file);
+  form.append('allow_training', allowTraining ? 'true' : 'false');
+  return request('/api/photo/analyze', { method: 'POST', body: form });
 }
 
 // ---- Accounts ----

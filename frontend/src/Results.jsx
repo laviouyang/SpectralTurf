@@ -3,6 +3,7 @@
  * inspection indicator, map layer choice + legend, the numbers, what they mean,
  * data quality, and limitations.
  */
+import PhotoCheck from './PhotoCheck.jsx';
 
 const LAYERS = [
   { id: 'inspection', label: 'Inspection' },
@@ -156,6 +157,8 @@ export default function Results({ result, layer, onLayerChange }) {
       </p>
 
       <InspectionCard inspection={result.inspection} onShowOnMap={() => onLayerChange('inspection')} />
+
+      <PhotoCheck />
 
       {/* ---- Map layer choice and legend ---- */}
       <div className="layer-choice" role="radiogroup" aria-label="Map layer">

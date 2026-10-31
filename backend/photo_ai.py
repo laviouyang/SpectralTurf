@@ -155,7 +155,7 @@ def analyze(data, allow_training=False, today=None):
         "cutoff": ai["cutoff"],
         "method": ai["method"],
         "photo_date": photo_date.isoformat(),
-        "date_source": "photo" if taken else "today (the photo has no date inside it)",
+        "date_source": "photo" if taken else "today",  # "today" = the photo had no date inside
         "off_season": off_season,
         "note": " ".join(notes),
         "saved_for_training": saved_as is not None,

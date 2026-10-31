@@ -373,3 +373,103 @@ pre {
   margin-top: 4px;
   align-items: center;
 }
+
+/* Photo AI: "Check a spot with a photo" */
+.photo-check {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #c7cfc9;
+  border-radius: 6px;
+  background: #fbfcfb;
+}
+.photo-check h4 {
+  margin-top: 0;
+}
+.photo-check p {
+  margin: 0 0 8px;
+}
+.photo-consent {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+/* The real file input is hidden; the label looks like a button and opens it. */
+.photo-button {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #1f5e3b;
+  color: white;
+  cursor: pointer;
+}
+.photo-button input {
+  display: none;
+}
+.photo-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  margin: 10px 0;
+  border-radius: 4px;
+}
+.photo-result {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 6px solid;
+  border-radius: 6px;
+}
+.photo-sure {
+  border-color: #1f5e3b;
+  background: #eaf5ee;
+}
+.photo-uncertain {
+  border-color: #8a948e;
+  background: #f0f2f1;
+}
+.photo-headline {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.photo-warning {
+  font-weight: 600;
+}
+.photo-season {
+  padding: 6px 8px;
+  border-left: 4px solid #c98a00;
+  background: #fff6e0;
+  font-size: 0.85rem;
+}
+.prob-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  font-size: 0.85rem;
+}
+.prob-name {
+  width: 130px;
+}
+.prob-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: #dfe5e0;
+  overflow: hidden;
+}
+.prob-fill {
+  display: block;
+  height: 100%;
+  background: #8a948e;
+}
+.prob-top .prob-fill {
+  background: #1f5e3b;
+}
+.prob-value {
+  width: 38px;
+  text-align: right;
+}
+.small {
+  font-size: 0.8rem;
+}
