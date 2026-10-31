@@ -156,12 +156,107 @@ def step2_zero_shot():
         check("20. second run uses the cache", "Computing CLIP embeddings" not in out)
 
 
+def step3_site_split():
+    """The by-site rule, checked with random numbers in place of CLIP embeddings (no model)."""
+    import numpy as np
+
+    import evaluate
+    import train
+
+    rng = np.random.default_rng(0)
+    sites = [f"site{i % 4}" for i in range(40)]
+    labels = [dataset.LABELS[i % 4] for i in range(0, 80, 2)]
+    embeddings = rng.normal(size=(40, 8))
+
+    seen_in_training = []
+    real_make_classifier = evaluate.make_classifier
+
+    class Spy:
+        """Pretends to be the classifier and remembers which rows it was trained on."""
+        def __init__(self):
+            self.inner = real_make_classifier()
+
+        def fit(self, x, y):
+            rows = {int(np.argmin(np.abs(embeddings - row).sum(axis=1))) for row in x}
+            seen_in_training.append({sites[i] for i in rows})
+            self.inner.fit(x, y)
+            self.classes_ = self.inner.classes_
+            return self
+
+        def predict_proba(self, x):
+            return self.inner.predict_proba(x)
+
+    evaluate.make_classifier = Spy
+    try:
+        probabilities, skipped, _ = evaluate.held_out_site_predictions(embeddings, labels, sites)
+    finally:
+        evaluate.make_classifier = real_make_classifier
+    check("21. one test model per site (leave-one-site-out with 4 sites)", len(seen_in_training) == 4)
+    check("22. no test model ever trained on the site it was tested on",
+          all(len(trained_sites) == 3 for trained_sites in seen_in_training))
+    check("23. every photo gets exactly one prediction, as 4 probabilities adding to 1",
+          not np.isnan(probabilities).any() and np.allclose(probabilities.sum(axis=1), 1))
+
+    one_label_sites = ["a", "a", "b", "b", "c", "c"]
+    one_label = ["healthy", "worn_bare", "healthy", "healthy", "healthy", "healthy"]
+    probabilities, skipped, _ = evaluate.held_out_site_predictions(rng.normal(size=(6, 8)), one_label,
+                                                                   one_label_sites)
+    check("24. a site is skipped (not faked) when the other sites have only one label",
+          ["a"] in skipped and np.isnan(probabilities[:2]).all())
+
+    clf = train.make_classifier().fit(rng.normal(size=(6, 8)), ["healthy", "non_turf"] * 3)
+    full = train.probabilities_in_label_order(clf, rng.normal(size=(2, 8)))
+    check("25. labels the model never saw get probability 0, in the right column",
+          full.shape == (2, 4) and (full[:, [1, 2]] == 0).all())
+
+
+def step3_train_and_evaluate():
+    import joblib
+
+    import evaluate
+    import train
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = make_dataset(tmp, ["a.png,healthy,Test Site 1,2026-07-01,"],
+                            [("healthy", "a.png", "TEST_IMAGE_green.png")])
+        code, out = run_quietly(train.main, root)
+        check("26. train.py refuses when a label has no photos",
+              code == 1 and "no usable photos" in out and not (root / train.MODEL_FILE).exists())
+        code, out = run_quietly(evaluate.main, root)
+        check("27. evaluate.py refuses with only 1 site", code == 1 and "need at least 2 sites" in out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = fake_training_set(tmp)
+        code, out = run_quietly(train.main, root, 0.7)
+        saved = joblib.load(root / train.MODEL_FILE)
+        check("28. train.py saves a model with its cutoff and photo counts",
+              code == 0 and saved["cutoff"] == 0.7 and saved["photos"] == 24 and saved["sites"] == 3)
+        code, out = run_quietly(train.main, root, 1.5)
+        check("29. an impossible cutoff is refused", code == 1)
+        code, out = run_quietly(evaluate.main, root)
+        results = (root / "results.md").read_text(encoding="utf-8")
+        check("30. evaluate.py writes results.md comparing zero-shot and trained",
+              code == 0 and "Zero-shot CLIP (no training):" in results
+              and "Trained classifier:" in results and "leave-one-site-out" in results)
+        rows, _, _ = dataset.check(root)
+        import clip_model
+        embeddings = clip_model.embed_dataset(rows, root / "embeddings.npz")
+        probabilities, _, _ = evaluate.held_out_site_predictions(
+            embeddings, [r["label"] for r in rows], [r["site_key"] for r in rows])
+        check("31b. probabilities are not all stuck near 25% (the scaling bug found in Step 3)",
+              (probabilities.max(axis=1) > 0.5).mean() > 0.5)
+    check("31. the real model folder was not touched by the tests",
+          not (dataset.ML_DIR / train.MODEL_FILE).exists())
+
+
 if __name__ == "__main__":
     if not (TEST_IMAGES / "TEST_IMAGE_green.png").exists():
         sys.exit("Run first:  python backend/test_images/make_test_images.py")
     step1_dataset_checks()
+    step3_site_split()
     if "--with-model" in sys.argv:
         step2_zero_shot()
+        step3_train_and_evaluate()
     else:
         print("(Skipping the CLIP model tests. Add --with-model to run them.)")
     print(f"\nAll {passed} ml tests passed.")

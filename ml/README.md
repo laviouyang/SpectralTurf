@@ -74,6 +74,28 @@ A low number is fine and expected; CLIP was never shown our labels.
 - The first run downloads the CLIP model once (about 600 MB).
 - Each photo's embedding is saved in `ml/embeddings.npz` (git-ignored), so later runs are fast.
 
+## Step 3: train our own classifier, and measure it honestly
+
+```powershell
+python ml/evaluate.py            # measure: accuracy on fields the model never saw
+python ml/train.py               # build the app's model from all photos
+python ml/train.py --cutoff 0.7  # (optional) after choosing a cutoff from evaluate.py
+```
+- **How it learns:** CLIP turns each photo into 512 numbers (its embedding). Logistic
+  regression learns which patterns in those numbers go with each label.
+- **Why test by site:** photos of the same field look alike, so testing on a field that was
+  also in training would make the accuracy look better than it is. `evaluate.py` always holds
+  out whole sites: each photo is predicted by a model that never saw its field.
+- `evaluate.py` prints, and saves to `ml/results.md` with the date: trained vs. zero-shot
+  accuracy on the same photos, precision/recall per label, confusion matrices, accuracy per
+  site, and a table of how many photos fall below each possible "uncertain" cutoff.
+  **Only report numbers from this file.**
+- `train.py` saves `ml/model/turf_photo_clf.joblib`. Restart the backend afterwards and the
+  photo check uses it instead of zero-shot.
+- Accuracy on the photos the saved model was trained on is never shown; it would be meaningless.
+- If `results.md` shows the model is very sure (above 0.9) yet often wrong, lower
+  `REGULARIZATION_C` in `ml/train.py` (try 0.1) and run both scripts again.
+
 ## Tests
 ```powershell
 python backend/test_images/make_test_images.py   # once: makes generated test images
