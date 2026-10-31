@@ -196,6 +196,38 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
       Test DB deleted afterwards. NOT for public deploy as-is: no login rate limit, no HTTPS
       locally, localStorage token. Awaiting student hand-test.
 
+- SHARE LINK (2026-10-31): student wants "a website" for a few people, NOT public/hosted.
+      Chose Cloudflare quick tunnel from own PC. api.js API_URL default '' (same origin);
+      vite.config.js proxies /api -> localhost:8000 (dev + preview); preview port 4173,
+      allowedHosts ['.trycloudflare.com'] (others 403). `npm.cmd run share` = build + preview.
+      Verified locally: page 200, /api/health + login 401 through 4173, unknown Host 403.
+      cloudflared NOT installed or tested yet (student runs winget). README "Sharing a link".
+      PHONE ON WI-FI: `npm.cmd run phone` = `vite --host`. Verified page 200 at the PC's Wi-Fi
+      IP (10.0.0.118 on 2026-10-31); backend :8000 not reachable from Wi-Fi (good). Wi-Fi profile
+      was Public + no Node firewall rule → student must set Private / allow Node. Phone untested.
+
+## AI photo check (plan: `docs/STAGE_9_PHOTO_AI.md`, for WAICY, due Nov 29, 2026)
+Note: the doc calls it "Stage 9", but Stage 9 above is accounts; this is the photo AI work.
+Do ONE step at a time; after each, stop and tell the student what changed, how to test, and
+what success looks like.
+
+Non-negotiable rules for this stage:
+- The photo AI gives a **suggestion with a confidence**, never a diagnosis. UI text must say so.
+- Never invent accuracy numbers. Only report numbers printed by `evaluate.py`.
+- Train/test split must be **by field/site**, not random by photo (photos of the same field
+  in both sets would make accuracy look better than it is).
+- Uploaded photos are **not saved** by default (matches the Take9 security answer).
+  Only save if the user ticks "Allow this photo to improve the model," and strip GPS/EXIF first.
+- Validate uploads: images only (jpg/png/webp), max 10 MB.
+- Dormancy warning: in late fall/winter Colorado grass turns brown naturally. Record the date
+  of every photo; the UI should note that brown turf in the off-season may be normal dormancy.
+
+Progress:
+- [~] Step 1 — Photo dataset setup (2026-10-31). `ml/data/<label>/` (healthy, dry_stressed,
+      worn_bare, non_turf), `ml/photos.csv` (header only: filename,label,site,date,notes),
+      `ml/check_dataset.py`, `ml/README.md`. Photo files are git-ignored (phone photos carry GPS
+      location; repo is public). Awaiting student's photos.
+
 ## Known gaps / TODO
 - Overlay drawn as lon/lat-grid image on Web Mercator map: fine for field-sized areas, slight
   stretch possible near the 5 km max.

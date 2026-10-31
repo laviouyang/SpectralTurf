@@ -127,6 +127,36 @@ python test_accounts.py
 Checks accounts with a throwaway database: passwords and tokens are never stored as plain text,
 wrong passwords are refused, and one user can't see or delete another user's saved analyses.
 
+### Opening it on your phone (same Wi-Fi)
+
+1. Windows must treat your home Wi-Fi as **Private** (Settings → Network & internet → Wi-Fi →
+   your network → Private network). Only do this on your own home network.
+2. Start the backend as usual. In `frontend`, run `npm.cmd run phone` instead of `npm.cmd run dev`.
+   If Windows Firewall asks about Node.js, allow it on **private** networks only.
+3. Vite prints a `Network:` address such as `http://10.0.0.118:5173`. Open it on the phone.
+
+The phone talks only to the website; Vite passes `/api/...` to the backend, which stays
+reachable from this computer only.
+
+### Sharing a link (temporary, from your own computer)
+
+To let a few people open the app without hosting it anywhere, use a free Cloudflare
+"quick tunnel". It gives a random `https://….trycloudflare.com` link that leads to your computer.
+It works only while your computer and the three windows below are running.
+
+One-time install: `winget install --id Cloudflare.cloudflared`
+
+1. Start the backend as usual (`uvicorn main:app --reload` in `backend`).
+2. In `frontend`: `npm.cmd run share` (builds the finished site and serves it on port 4173).
+3. In a third window: `cloudflared tunnel --url http://localhost:4173`. Copy the
+   `https://….trycloudflare.com` link it prints, and send it to the people who need it.
+
+The page sends its requests to `/api/...` on the same address, and Vite passes them to the
+backend on port 8000 (`vite.config.js`). Your Copernicus keys stay on your computer.
+**Anyone with the link can use the app** (and your Copernicus free quota) while it is running,
+so only share it with people you trust, and press `Ctrl + C` in the tunnel window when done.
+Each start gives a new link.
+
 ### Accounts (optional)
 
 Visitors can analyze without an account. A **free account** (username + password, no email)

@@ -9,8 +9,10 @@
  * and send it with each request as "Authorization: Bearer <token>".
  */
 
-// Where the backend runs. Can be changed later (for deployment) with a VITE_API_URL setting.
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Where the backend runs. Empty = "the same address this page came from": Vite then
+// passes /api/... requests on to the backend (see vite.config.js). That way it also
+// works through a share link. Can be changed with a VITE_API_URL setting.
+const API_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_KEY = 'spectralturf_token';
 
 export function getToken() {
