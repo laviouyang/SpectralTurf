@@ -335,3 +335,41 @@ pre {
     height: 60vh;
   }
 }
+
+/* Accounts */
+.account-form label,
+.field-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+.account-form input,
+.field-name input {
+  padding: 6px;
+  border: 1px solid #b9c3bc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+.account-form .button-row {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.history-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid #dfe5e0;
+  font-size: 0.85rem;
+}
+.history-item .button-row {
+  margin-top: 4px;
+  align-items: center;
+}

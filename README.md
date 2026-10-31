@@ -121,6 +121,28 @@ These tests need no internet or login. They check the index math, cloud masking,
 insufficient-evidence rule, pixels outside the outline, data-quality warnings, map colors, and the
 inspection rule.
 
+```powershell
+python test_accounts.py
+```
+Checks accounts with a throwaway database: passwords and tokens are never stored as plain text,
+wrong passwords are refused, and one user can't see or delete another user's saved analyses.
+
+### Accounts (optional)
+
+Visitors can analyze without an account. A **free account** (username + password, no email)
+saves every analysis you run: the field outline, excluded areas, dates, satellite image date,
+and the main numbers. **Show on map** puts a saved field back on the map so you can analyze it
+again, for example later in the season.
+
+- Data lives in `backend/spectralturf.db`, a SQLite file on the computer running the backend.
+  It is git-ignored. Delete it to remove all accounts.
+- Passwords are stored only as scrypt hashes with a random salt. Login tokens are stored only as
+  SHA-256 hashes and expire after 30 days.
+- Saved numbers come from the backend's own analysis, not from the browser. Map pictures are
+  not saved (too large); run Analyze again to see them.
+- **Not ready for a public website as-is:** it needs HTTPS and a limit on login attempts first.
+  There is no password reset, because no email is collected.
+
 ---
 
 ## The science
@@ -289,12 +311,14 @@ for the rectangle, so only pixels inside the drawn outline are analyzed.
 | `backend/sentinel.py` | Copernicus login (cached token), Catalog search, Process API downloads |
 | `backend/indices.py` | The science: NDVI, NDMI, cloud mask, excluded areas, statistics, warnings, inspection rule (no internet) |
 | `backend/render.py` | Turns index values into the map pictures (display only) |
-| `backend/test_indices.py` | Offline tests |
+| `backend/accounts.py` | Accounts (SQLite): password hashing, login tokens, saved analyses |
+| `backend/test_indices.py`, `backend/test_accounts.py` | Offline tests |
 | `frontend/src/App.jsx` | Page layout, state, Analyze button |
 | `frontend/src/MapView.jsx` | Leaflet map, drawing tools, analysis picture overlay |
 | `frontend/src/SearchBox.jsx` | Place search (Nominatim) |
 | `frontend/src/polygonCheck.js` | Area size checks before sending |
 | `frontend/src/api.js` | The only file that talks to the backend |
+| `frontend/src/AccountPanel.jsx` | Log in / sign up form and the saved-analyses list |
 | `frontend/src/Results.jsx` | Inspection card, legends, numbers, data quality, limitations |
 | `frontend/src/leafletSetup.js` | Makes Leaflet available to the Leaflet.draw plugin |
 

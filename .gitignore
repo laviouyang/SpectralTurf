@@ -9,3 +9,6 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+
+# User accounts database
+*.db

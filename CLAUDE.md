@@ -176,6 +176,25 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
       comparing the 2026-08-05 analysis with the 2025-06-01 Esri photo (pattern had moved). With
       dates set to 2025-06-01..2025-06-01 it matched: "everything works as normal now".
       Idea offered, not built: show the Esri photo date next to the satellite date.
+- [~] Stage 9 — ACCOUNTS + SAVED HISTORY (2026-10-31, student request; after the CAC deadline).
+      Optional; visitors can still analyze. `backend/accounts.py`: SQLite (stdlib) file
+      `backend/spectralturf.db` (git-ignored, *.db). Username + password only (no email: least
+      personal data for minors; no password reset). Passwords: hashlib.scrypt (n=2^14,r=8,p=1) +
+      16-byte salt, hmac.compare_digest; same error for unknown user / wrong password. Sessions:
+      secrets.token_urlsafe(32), only SHA-256 stored, 30 days, logout deletes. Project choices:
+      username 3-30 [A-Za-z0-9_], password 8-200 chars, max 500 saved per user.
+      main.py: /api/auth/signup|login|logout (POST), /api/auth/me, /api/history (GET),
+      /api/history/{id} (DELETE); Authorization: Bearer; CORS adds DELETE + Authorization.
+      /api/analyze saves a SUMMARY server-side when logged in (numbers from the backend's own
+      result, never from the browser; images not stored), optional `name`; returns saved_id
+      (or save_error, analysis still shown). Frontend: api.js token in localStorage;
+      AccountPanel.jsx (login/signup form, history list: Show on map / Delete); App "Your account"
+      section + "Field name" input; MapView `loadRequest` redraws saved outline + exclusions.
+      Tests: test_accounts.py 16/16; test_indices 29/29. Claude verified via API + Chrome:
+      signup, stays logged in after reload, analyze saves (Gates 2025-06-01 NDVI 0.819 / NDMI
+      0.332, "Some areas"), Show on map redraws outline, re-analyze adds entry, delete, logout.
+      Test DB deleted afterwards. NOT for public deploy as-is: no login rate limit, no HTTPS
+      locally, localStorage token. Awaiting student hand-test.
 
 ## Known gaps / TODO
 - Overlay drawn as lon/lat-grid image on Web Mercator map: fine for field-sized areas, slight

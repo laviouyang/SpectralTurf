@@ -4,12 +4,14 @@
  * Stage 4: search, draw, edit, clear.
  * Stage 5: Analyze sends the polygon to the backend and shows the real results.
  * Stage 8: "Exclude" areas inside the outline that are not turf (e.g. dirt infields).
+ * Accounts: optional log in; each analysis is saved to the user's history.
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapView from './MapView.jsx';
 import SearchBox from './SearchBox.jsx';
 import Results from './Results.jsx';
-import { analyzeArea } from './api.js';
+import AccountPanel from './AccountPanel.jsx';
+import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
 export default function App() {
@@ -34,6 +36,58 @@ export default function App() {
   const requestCount = useRef(0);
   // Which analysis picture is shown on the map: 'ndvi', 'ndmi', 'true_color', or 'none'.
   const [layer, setLayer] = useState('ndvi');
+
+  // Accounts: who is logged in (null = visitor) and their saved analyses.
+  const [user, setUser] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyError, setHistoryError] = useState('');
+  // The name an analysis is saved under (only used when logged in).
+  const [fieldName, setFieldName] = useState('');
+  // Set by "Show on map": tells the map to draw a saved outline and exclusions.
+  const [loadRequest, setLoadRequest] = useState(null);
+
+  // When the page opens, check whether a saved login is still valid.
+  useEffect(() => {
+    currentUser().then(setUser);
+  }, []);
+
+  const refreshHistory = useCallback(async () => {
+    try {
+      setHistory(await getHistory());
+      setHistoryError('');
+    } catch (e) {
+      setHistoryError(`Could not load your saved analyses. ${e.message}`);
+    }
+  }, []);
+
+  // Load the history whenever someone logs in; empty it when they log out.
+  useEffect(() => {
+    if (user) refreshHistory();
+    else setHistory([]);
+  }, [user, refreshHistory]);
+
+  async function handleLogOut() {
+    await logOut().catch(() => {});
+    setUser(null);
+  }
+
+  async function handleDelete(item) {
+    try {
+      await deleteHistoryItem(item.id);
+    } catch (e) {
+      setHistoryError(e.message);
+    }
+    refreshHistory();
+  }
+
+  // Put a saved field back on the map with the same dates, ready to analyze again.
+  function handleShowSaved(item) {
+    setEditing(false);
+    setStart(item.start);
+    setEnd(item.end);
+    setFieldName(item.name);
+    setLoadRequest({ geometry: item.geometry, exclusions: item.exclusions, id: Date.now() });
+  }
 
   // The picture for the map. useMemo keeps it the same object until the result
   // or layer changes, so the map doesn't redraw it on every keystroke.
@@ -80,8 +134,10 @@ export default function App() {
     setError('');
     try {
       const exclude = exclusions.map((shape) => shape.geojson);
-      const data = await analyzeArea(polygon.geojson, exclude, start, end);
+      const data = await analyzeArea(polygon.geojson, exclude, start, end, user ? fieldName : '');
       if (thisRequest === requestCount.current) setResult(data);
+      if (data.saved_id) refreshHistory();
+      if (data.save_error) setHistoryError(`This analysis was not saved: ${data.save_error}`);
     } catch (e) {
       if (thisRequest === requestCount.current) setError(e.message);
     } finally {
@@ -101,6 +157,19 @@ export default function App() {
 
       <main className="layout">
         <aside className="sidebar">
+          <section>
+            <h2>Your account</h2>
+            <AccountPanel
+              user={user}
+              onUserChange={setUser}
+              onLogOut={handleLogOut}
+              history={history}
+              historyError={historyError}
+              onShow={handleShowSaved}
+              onDelete={handleDelete}
+            />
+          </section>
+
           <section>
             <h2>1. Find a place</h2>
             <SearchBox onSelect={setSearchTarget} />
@@ -229,6 +298,17 @@ export default function App() {
             <p className="muted">
               The app picks the least-cloudy Sentinel-2 image in this date range.
             </p>
+            {user && (
+              <label className="field-name">
+                Field name (for your saved history)
+                <input
+                  value={fieldName}
+                  maxLength={80}
+                  placeholder="e.g. Village Greens north field"
+                  onChange={(e) => setFieldName(e.target.value)}
+                />
+              </label>
+            )}
 
             <button type="button" onClick={handleAnalyze} disabled={!canAnalyze}>
               {loading ? 'Analyzing…' : 'Analyze'}
@@ -265,6 +345,7 @@ export default function App() {
           editing={editing}
           onEditingChange={setEditing}
           searchTarget={searchTarget}
+          loadRequest={loadRequest}
           overlay={overlay}
         />
       </main>

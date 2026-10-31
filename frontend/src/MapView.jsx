@@ -8,6 +8,7 @@
  *   exclusions    - when App sets it to [] (Remove exclusions), we erase them
  *   editing       - true: show draggable corners; false: hide them and save the shape
  *   excludeRequest- { kind: 'rectangle' | 'polygon' }: start drawing an excluded area
+ *   loadRequest   - { geometry, exclusions }: draw a saved outline (from "Show on map")
  *   searchTarget  - when a search result is picked, we zoom to it
  *   overlay       - an analysis picture ({ url, bounds }) to lay over the field, or null
  */
@@ -100,6 +101,7 @@ export default function MapView({
   onEditingChange,
   excludeRequest,
   searchTarget,
+  loadRequest,
   overlay,
 }) {
   const containerRef = useRef(null); // the <div> the map lives in
@@ -233,7 +235,24 @@ export default function MapView({
     mapRef.current.fitBounds([[south, west], [north, east]], { maxZoom: 17 });
   }, [searchTarget]);
 
-  // 5. Show the chosen analysis picture (NDVI, NDMI, or true color) over the field.
+  // 5. Draw a saved field (from the account history) as if the user had just drawn it.
+  useEffect(() => {
+    if (!loadRequest || !mapRef.current) return;
+    // GeoJSON corners are [longitude, latitude]; Leaflet wants [latitude, longitude].
+    const toLatLngs = (geometry) => geometry.coordinates[0].slice(0, -1).map(([lon, lat]) => [lat, lon]);
+    const outline = L.polygon(toLatLngs(loadRequest.geometry), SHAPE_STYLE);
+    drawnItemsRef.current.clearLayers();
+    excludedItemsRef.current.clearLayers();
+    drawnItemsRef.current.addLayer(outline);
+    for (const shape of loadRequest.exclusions) {
+      excludedItemsRef.current.addLayer(L.polygon(toLatLngs(shape), EXCLUDE_STYLE));
+    }
+    onPolygonChange(describeLayer(outline));
+    onExclusionsChange(excludedItemsRef.current.getLayers().map(describeLayer));
+    mapRef.current.fitBounds(outline.getBounds(), { maxZoom: 18 });
+  }, [loadRequest, onPolygonChange, onExclusionsChange]);
+
+  // 6. Show the chosen analysis picture (NDVI, NDMI, or true color) over the field.
   // The picture covers exactly the box the backend analyzed. The "pixel-image" CSS
   // class keeps each satellite pixel a sharp square instead of a blurry blend.
   useEffect(() => {

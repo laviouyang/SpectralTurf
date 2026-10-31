@@ -9,3 +9,6 @@ venv/
 
 # Test images saved during development
 *.png
+
+# User accounts database (passwords are hashed, but it is still private data)
+*.db

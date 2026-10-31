@@ -6,6 +6,8 @@ Endpoints:
   POST /api/analyze           -> real NDVI/NDMI for a polygon drawn on the website
   GET  /api/test/truecolor    -> real Sentinel-2 true-color image for a box you choose
   GET  /api/test/indices      -> same analysis as /api/analyze, but for a box (easy to test)
+  POST /api/auth/signup, /api/auth/login, /api/auth/logout, GET /api/auth/me -> accounts
+  GET  /api/history, DELETE /api/history/{id} -> a logged-in user's saved analyses
 
 Run it with:   uvicorn main:app --reload
 Then open:     http://localhost:8000/docs
@@ -16,11 +18,12 @@ import os
 from datetime import date
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+import accounts
 import indices
 import render
 import sentinel
@@ -37,8 +40,8 @@ FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://1
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in FRONTEND_ORIGINS],
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # A drawn field needs only a handful of corners; this stops absurd requests.
@@ -138,6 +141,37 @@ def clean_polygon(geometry: dict):
 
 
 # ---------------------------------------------------------------------------
+# Accounts: who is making this request?
+# ---------------------------------------------------------------------------
+
+def get_db():
+    """Open the accounts database for one request, and always close it afterwards."""
+    db = accounts.connect()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def token_from(authorization):
+    """The browser sends "Authorization: Bearer <token>" when someone is logged in."""
+    if authorization and authorization.startswith("Bearer "):
+        return authorization[len("Bearer "):].strip()
+    return None
+
+
+def current_user(authorization: str | None = Header(None), db=Depends(get_db)):
+    """The logged-in user, or None for a visitor. Analyzing works either way."""
+    return accounts.user_for_token(db, token_from(authorization))
+
+
+def required_user(user=Depends(current_user)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Please log in first.")
+    return user
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -150,15 +184,75 @@ class AnalyzeRequest(BaseModel):
         default_factory=list,
         description="GeoJSON Polygons inside the outline that are not turf (e.g. dirt infields)",
     )
+    name: str = Field("", max_length=200, description="Field name for the history (logged-in users)")
 
 
 @app.post("/api/analyze")
-def analyze(request: AnalyzeRequest):
+def analyze(request: AnalyzeRequest, user=Depends(current_user), db=Depends(get_db)):
     geometry = clean_polygon(request.geometry)
     if len(request.exclude) > MAX_EXCLUDED_AREAS:
         raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
     exclusions = [clean_polygon(shape) for shape in request.exclude]
-    return run_analysis(geometry, request.start, request.end, request.max_cloud, exclusions)
+    result = run_analysis(geometry, request.start, request.end, request.max_cloud, exclusions)
+
+    # Logged in? Save a summary of this real result to the user's history.
+    # Saving problems never hide the analysis itself.
+    if user:
+        try:
+            result["saved_id"] = accounts.save_analysis(
+                db, user["id"], request.name, geometry, exclusions, request.start, request.end, result
+            )
+        except accounts.AccountError as e:
+            result["save_error"] = str(e)
+    return result
+
+
+class Credentials(BaseModel):
+    username: str = Field(..., max_length=100)
+    password: str = Field(..., max_length=1000)
+
+
+@app.post("/api/auth/signup")
+def sign_up(body: Credentials, db=Depends(get_db)):
+    try:
+        token = accounts.sign_up(db, body.username.strip(), body.password)
+    except accounts.AccountError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"token": token, "user": accounts.user_for_token(db, token)}
+
+
+@app.post("/api/auth/login")
+def log_in(body: Credentials, db=Depends(get_db)):
+    try:
+        token = accounts.log_in(db, body.username.strip(), body.password)
+    except accounts.AccountError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    return {"token": token, "user": accounts.user_for_token(db, token)}
+
+
+@app.post("/api/auth/logout")
+def log_out(authorization: str | None = Header(None), db=Depends(get_db)):
+    token = token_from(authorization)
+    if token:
+        accounts.log_out(db, token)
+    return {"status": "logged out"}
+
+
+@app.get("/api/auth/me")
+def me(user=Depends(required_user)):
+    return {"user": user}
+
+
+@app.get("/api/history")
+def history(user=Depends(required_user), db=Depends(get_db)):
+    return {"analyses": accounts.list_analyses(db, user["id"])}
+
+
+@app.delete("/api/history/{analysis_id}")
+def delete_history_item(analysis_id: int, user=Depends(required_user), db=Depends(get_db)):
+    if not accounts.delete_analysis(db, user["id"], analysis_id):
+        raise HTTPException(status_code=404, detail="That saved analysis was not found.")
+    return {"status": "deleted"}
 
 
 @app.get("/api/test/truecolor")
