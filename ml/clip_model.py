@@ -50,7 +50,6 @@ def load():
     import torch
     from transformers import CLIPModel, CLIPProcessor
 
-    torch.set_grad_enabled(False)  # we only use the model, we never change it
     model = CLIPModel.from_pretrained(MODEL_NAME).eval()
     processor = CLIPProcessor.from_pretrained(MODEL_NAME)
     return model, processor
@@ -69,20 +68,26 @@ def _unit_length(vectors):
 
 def embed_images(images):
     """List of PIL images -> array (n, 512) of unit-length embeddings."""
+    import torch
+
     model, processor = load()
     chunks = []
     for start in range(0, len(images), EMBEDDING_BATCH):
         batch = processor(images=images[start:start + EMBEDDING_BATCH], return_tensors="pt")
-        chunks.append(_as_tensor(model.get_image_features(**batch)).numpy())
+        with torch.no_grad():  # we only use the model, we never train CLIP itself
+            chunks.append(_as_tensor(model.get_image_features(**batch)).numpy())
     return _unit_length(np.concatenate(chunks)) if chunks else np.zeros((0, 512), np.float32)
 
 
 @lru_cache(maxsize=1)
 def text_embeddings():
     """The 4 class sentences -> array (4, 512), in LABELS order."""
+    import torch
+
     model, processor = load()
     batch = processor(text=[PROMPTS[label] for label in LABELS], return_tensors="pt", padding=True)
-    return _unit_length(_as_tensor(model.get_text_features(**batch)).numpy())
+    with torch.no_grad():
+        return _unit_length(_as_tensor(model.get_text_features(**batch)).numpy())
 
 
 def zero_shot_probabilities(image_embeddings):
@@ -91,7 +96,7 @@ def zero_shot_probabilities(image_embeddings):
     closeness into scores, and softmax turns scores into probabilities that add up to 1.
     """
     model, _ = load()
-    scale = float(model.logit_scale.exp())
+    scale = float(model.logit_scale.detach().exp())
     scores = scale * (np.asarray(image_embeddings) @ text_embeddings().T)
     scores -= scores.max(axis=1, keepdims=True)  # keeps exp() from overflowing
     probabilities = np.exp(scores)

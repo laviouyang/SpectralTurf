@@ -8,6 +8,7 @@ Endpoints:
   GET  /api/test/indices      -> same analysis as /api/analyze, but for a box (easy to test)
   POST /api/auth/signup, /api/auth/login, /api/auth/logout, GET /api/auth/me -> accounts
   GET  /api/history, DELETE /api/history/{id} -> a logged-in user's saved analyses
+  POST /api/photo/analyze     -> AI suggestion for one photo of a spot (see photo_ai.py)
 
 Run it with:   uvicorn main:app --reload
 Then open:     http://localhost:8000/docs
@@ -18,13 +19,15 @@ import os
 from datetime import date
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from starlette.formparsers import MultiPartParser
 
 import accounts
 import indices
+import photo_ai
 import render
 import sentinel
 
@@ -291,3 +294,27 @@ def test_indices(
         raise HTTPException(status_code=400, detail="West must be less than east, and south less than north.")
     geometry = sentinel.box_polygon(west, south, east, north)
     return run_analysis(geometry, start, end, max_cloud)
+
+
+# ---------------------------------------------------------------------------
+# Photo AI: "Check a spot with a photo"
+# ---------------------------------------------------------------------------
+
+# Uploads bigger than 1 MB are normally buffered in a temporary FILE. Raising the limit
+# keeps every allowed photo (up to 10 MB) in memory, so it is never written to disk.
+MultiPartParser.spool_max_size = photo_ai.MAX_BYTES + 1024 * 1024
+
+
+@app.post("/api/photo/analyze")
+def photo_analyze(
+    photo: UploadFile = File(..., description="A JPG, PNG, or WEBP photo, at most 10 MB"),
+    allow_training: bool = Form(False, description="Keep this photo (metadata removed) to improve the model"),
+):
+    """AI suggestion (never a diagnosis) for a photo of a turf spot."""
+    data = photo.file.read(photo_ai.MAX_BYTES + 1)  # one byte extra, to notice "too big"
+    try:
+        return photo_ai.analyze(data, allow_training)
+    except photo_ai.PhotoError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    except photo_ai.ModelUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))

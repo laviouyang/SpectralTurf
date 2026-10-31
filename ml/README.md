@@ -96,6 +96,26 @@ python ml/train.py --cutoff 0.7  # (optional) after choosing a cutoff from evalu
 - If `results.md` shows the model is very sure (above 0.9) yet often wrong, lower
   `REGULARIZATION_C` in `ml/train.py` (try 0.1) and run both scripts again.
 
+## Step 4: the backend endpoint
+
+`POST /api/photo/analyze` (in `backend/photo_ai.py`) takes one photo and returns
+`label`, `confidence`, all 4 `probabilities`, `uncertain`, `method`, `photo_date`,
+`off_season` and a `note`. Try it at http://localhost:8000/docs → **POST /api/photo/analyze**
+→ Try it out → choose a photo → Execute.
+
+- Until `ml/model/turf_photo_clf.joblib` exists, `method` says **"zero-shot (not yet trained)"**.
+  After `python ml/train.py`, restart the backend and it names the trained classifier instead.
+- Only real JPG/PNG/WEBP contents up to 10 MB are accepted (the file name doesn't matter).
+- The photo is checked **in memory** and forgotten. It is only kept if `allow_training` is
+  true, then saved to `ml/inbox/` (git-ignored) **with GPS and all EXIF removed**. To use
+  inbox photos for training, look at each one, move it to the right `ml/data/<label>/`
+  folder, and add a row to `photos.csv`.
+- The date comes from the photo itself when it has one, otherwise today. Nov–Mar adds a
+  note that brown turf may be normal dormancy.
+- The first photo after the backend starts takes a few seconds (loading CLIP); later ones
+  take well under a second on this PC.
+- Tests: `cd backend` → `python test_photo_ai.py`
+
 ## Tests
 ```powershell
 python backend/test_images/make_test_images.py   # once: makes generated test images
