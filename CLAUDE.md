@@ -223,10 +223,23 @@ Non-negotiable rules for this stage:
   of every photo; the UI should note that brown turf in the off-season may be normal dormancy.
 
 Progress:
-- [~] Step 1 — Photo dataset setup (2026-10-31). `ml/data/<label>/` (healthy, dry_stressed,
-      worn_bare, non_turf), `ml/photos.csv` (header only: filename,label,site,date,notes),
-      `ml/check_dataset.py`, `ml/README.md`. Photo files are git-ignored (phone photos carry GPS
-      location; repo is public). Awaiting student's photos.
+- Steps 1-5 BUILT 2026-10-31 while student was away (student asked for all code, no photos yet).
+      Full report: `docs/STAGE_9_PROGRESS.md`. Commits: restore point bbaec24, then 63736eb (1),
+      db019b0 (2), b989847 (3), 72bc3c0 (4), d1c655b (5). Not pushed.
+  - [~] Step 1 — ml/data/<label>/, ml/photos.csv (header only), ml/dataset.py (shared checks;
+        site names case/space-insensitive), ml/check_dataset.py. Photo files git-ignored (GPS).
+  - [~] Step 2 — ml/clip_model.py (openai/clip-vit-base-patch32, PROMPTS, no_grad per call,
+        embeddings cache ml/embeddings.npz), ml/zero_shot.py, ml/report.py.
+  - [~] Step 3 — ml/train.py (StandardScaler + LogisticRegression balanced, REGULARIZATION_C 1.0;
+        saves ml/model/turf_photo_clf.joblib with cutoff), ml/evaluate.py (leave-one-site-out or
+        5 GroupKFold; writes ml/results.md). Without scaling all probs ~25% (fixed).
+  - [~] Step 4 — backend/photo_ai.py + POST /api/photo/analyze; zero-shot until model file
+        exists ("zero-shot (not yet trained)"); in-memory only (MultiPartParser.spool_max_size
+        raised); opt-in save to ml/inbox/ with EXIF/GPS stripped; EXIF date → off_season.
+  - [~] Step 5 — frontend/src/PhotoCheck.jsx under the inspection card (Chrome-verified).
+  - Tests: test_photo_ai.py 21, ml/test_ml.py --with-model 32 (generated images only, never
+    ml/data; no accuracy reported). NO real photos, NO trained model, NO accuracy numbers yet.
+  - [ ] Step 6 — waits for real results.
 
 ## Known gaps / TODO
 - Overlay drawn as lon/lat-grid image on Web Mercator map: fine for field-sized areas, slight
