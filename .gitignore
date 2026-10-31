@@ -12,3 +12,10 @@ __pycache__/
 
 # User accounts database
 *.db
+
+# Photo AI: the photos themselves stay on this computer (phone photos can contain
+# GPS location, and the repo is public). photos.csv and the empty folders are kept.
+ml/data/**/*.*
+!ml/data/**/.gitkeep
+ml/inbox/
+ml/embeddings.npz
