@@ -28,8 +28,10 @@ flag, map layers, data-quality panel, and all existing tests.
   Do not rename, rewrite, move, or delete any existing function, endpoint, component, or test.
 - The existing analysis must still run and show results even if the AI part fails or is
   off-season; the AI panel just shows its own message in that case.
+- The optional accounts system (login, sessions, saved history, `spectralturf.db`, and
+  `test_accounts.py`) must keep working unchanged. New features may only READ saved fields.
 - Before each step: make a git commit. After each step: run the existing tests
-  (`python test_indices.py` and any others) **plus** the new tests, and confirm the original
+  (`python test_indices.py`, `python test_accounts.py`, and any others) **plus** the new tests, and confirm the original
   app still works before committing.
 - If a step seems to require changing existing behavior, stop and ask Lavi first.
 
@@ -120,14 +122,52 @@ flag, map layers, data-quality panel, and all existing tests.
   - Text: "AI estimate based on satellite + weather history. Confirm in person."
 - **Success:** run the analysis on a field and see the AI panel fill in.
 
-## Step 8 — Multi-field ranking (if time)
-- Endpoint + page that runs the weather check on all saved fields and ranks them by risk.
-- This is the "which fields should my crew check first this week" view.
+## Step 8 — "My Fields" ranking (uses existing accounts)
+**Files:** new endpoint in `backend/predict.py`, new React component
+- The app already has optional accounts with saved analyses (`backend/spectralturf.db`,
+  table `saved_analyses`). Do NOT change the account system; only read from it.
+- For a logged-in user, take their distinct saved fields (outline + exclusions) and run the
+  weather check on each. Return a list ranked by risk: "Check these first this week."
+- A user can only ever see their own fields (check the session token, same as saved history).
+- Not logged in → panel says "Log in and analyze fields to see your ranked list."
+- **Success:** log in, analyze 3 fields, open "My Fields" and see them ranked.
 
-## Step 9 — Wrap-up for WAICY
-- README section: data sources, dataset size, model, splits, results from `ml/results.md`, limitations.
-- 2–3 slides: how the model learns, results vs. baselines, a real example from the app.
-- Demo video: analyze a field → AI weather check → ranked list.
+## Step 9 — "What if?" weather simulator (interactive use of the trained model)
+**Files:** new endpoint `POST /api/ai/what-if`, new React component
+- Sliders: days without rain (0–21), average high temperature, and rain amount.
+- Runs the trained Stage 10 model with the user's scenario instead of the real forecast and
+  shows the predicted greenness change and risk level for the current field (and for
+  "My Fields" if logged in).
+- Clear label: "Scenario estimate from the AI model, not a forecast."
+- Only allow slider values inside the range the model saw in training; show a warning outside it.
+- **Success:** move the sliders and watch the predicted risk update.
+
+## Step 10 — "Ask SpectralTurf" assistant (AI agent with tools)
+**Files:** `backend/assistant.py`, new endpoint `POST /api/ai/ask`, new React chat panel
+- Uses an LLM API (Lavi chooses: Claude API or Gemini). The API key goes ONLY in
+  `backend/.env`, read on the backend; never in the frontend, logs, or git.
+- The LLM can call these tools (each is an existing or Stage 10 backend function):
+  - `list_my_fields` (logged-in user's saved fields only)
+  - `get_saved_analysis(field)` (latest saved result for that field)
+  - `weather_check(field)` (Stage 10 expected vs. actual + next-week risk)
+  - `rank_my_fields()` (Step 8)
+  - `what_if(field, scenario)` (Step 9)
+- Rules for the assistant (put in its system prompt AND enforce in code):
+  - Answer only from tool results; always mention the image date and data quality.
+  - If data is missing or cloudy, say so instead of guessing.
+  - Never prescribe watering amounts or diagnose a cause; suggest what to inspect.
+  - Only access the current user's data; not logged in → only the field on screen.
+- Limit message length and number of messages per minute per user (cost and abuse control).
+- Tests: tool calls return only the user's own data; missing API key gives a friendly message
+  and the rest of the app still works.
+- **Success:** ask "Which of my fields should I check first?" and get an answer that matches
+  the "My Fields" ranking, with dates and numbers.
+
+## Step 11 — Wrap-up for WAICY
+- README section: data sources, dataset size, model, splits, results from `ml/results.md`,
+  the assistant's tools and safety rules, limitations.
+- Slides: how the model learns, results vs. baselines, the assistant + what-if demo.
+- Demo video: analyze a field → AI weather check → what-if sliders → ask the assistant.
 
 ---
 
@@ -136,10 +176,11 @@ flag, map layers, data-quality panel, and all existing tests.
 |---|---|
 | Nov 1 – Nov 5 | 1, 2 (start with 1 field, then 25) |
 | Nov 6 – Nov 9 | 3, 4 |
-| Nov 10 – Nov 15 | 5 (most important — leave time to fix problems) |
-| Nov 16 – Nov 21 | 6, 7 |
-| Nov 22 – Nov 26 | 8 if time, then 9 |
-| Nov 27 – Nov 29 | Buffer + submit |
+| Nov 10 – Nov 13 | 5 (most important — leave time to fix problems) |
+| Nov 14 – Nov 17 | 6, 7 |
+| Nov 18 – Nov 20 | 8, 9 |
+| Nov 21 – Nov 25 | 10 |
+| Nov 26 – Nov 29 | 11, buffer + submit |
 
 ## Known limits (say these to judges)
 - 10 m pixels: the model works at field/zone level, not individual sprinkler heads.

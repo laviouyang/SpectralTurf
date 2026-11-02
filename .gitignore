@@ -12,3 +12,6 @@ __pycache__/
 
 # User accounts database
 *.db
+
+# Stage 10: raw downloads (re-creatable; never re-downloaded while present)
+ml/data/cache/

@@ -222,6 +222,11 @@ ADD-ON ONLY — do not replace anything:
   move, or delete an existing function, endpoint, component, or test.
 - The existing analysis must still run and show results even if the AI part fails or is
   off-season; the AI panel just shows its own message.
+- The optional accounts system (login, sessions, saved history, `spectralturf.db`, and
+  `test_accounts.py`) must keep working unchanged. New features may only READ saved fields.
+- Tests to run after every step: `cd backend` → `python test_indices.py`,
+  `python test_accounts.py`, plus every new Stage 10 test (so far: `python ml/test_get_fields.py`
+  from the project folder).
 - If a step seems to require changing existing behavior, stop and ask the student first.
 
 Non-negotiable rules for this stage:
@@ -235,8 +240,38 @@ Non-negotiable rules for this stage:
   and stop and report if the Copernicus processing quota is getting low.
 - Weather data credit: "Weather data by Open-Meteo.com". Field outlines: "© OpenStreetMap contributors".
 
-Progress:
-- [ ] Step 1 — Collect field outlines (ml/get_fields.py → ml/data/fields.geojson)
+Steps (details in the plan doc):
+  1 field outlines (OSM Overpass) · 2 NDVI history per field (CDSE Statistical API, Apr–Oct
+  2019–2025, ≥80% clear) · 3 weather history (Open-Meteo, daily rain / max temp / ET0) ·
+  4 training dataset (features only from BEFORE each date) · 5 train + evaluate
+  (HistGradientBoostingRegressor; time split train 2019–23 / val 2024 / test 2025, plus ~20%
+  fields held out; MAE vs "same as last time" and "seasonal average"; results → ml/results.md) ·
+  6 POST /api/ai/weather-check (backend/predict.py) · 7 "AI Weather Check" panel below results ·
+  8 "My Fields" ranking from the user's saved fields (READ ONLY from accounts; own fields only) ·
+  9 "What if?" sliders, POST /api/ai/what-if ("Scenario estimate, not a forecast"; only values
+  inside the training range) · 10 "Ask SpectralTurf" assistant, POST /api/ai/ask (LLM key ONLY
+  in backend/.env; tools = list_my_fields, get_saved_analysis, weather_check, rank_my_fields,
+  what_if; answers only from tool results, mention image date + data quality, never prescribe
+  watering or diagnose, own data only, rate limits) · 11 README, slides, demo.
+  Student said: STOP before building Steps 8–10 and wait for their go-ahead.
+
+Progress (2026-11-01: only Step 1 started; NO ml/results.md, NO real numbers yet):
+- [x] Step 1 — Field outlines (2026-11-01). STUDENT DECISION: AI must work on ANY grass field,
+      incl. parks → mix 10 "sports" / 5 "baseball" / 10 "park" (FIELDS_PER_KIND). ml/get_fields.py:
+      2 Overpass queries cached in ml/data/cache/ (git-ignored): pitches (4,494) and landuse=grass
+      inside leisure=park (628; map_to_area returns far-away parks → centroid must be in Denver box
+      39.55,-105.15,39.95,-104.70). Rules (project choices): closed; drop non-grass surface tags,
+      never-grass sports, golf/shooting/model airfield; 8,000–100,000 m²; average width
+      (2·area/perimeter) >= 30 m (drops greenway strips); >= 1 km apart (300 m let 3 fields of one
+      complex in); seed 2026; VISUAL_REVIEW_EXCLUDE (9 ids with reasons, from Esri photo check).
+      Retries with 30/90 s backoff (Overpass returned 502 "at capacity" once).
+      Overpass was blocked by Cloudflare WARP on this PC; student turned WARP off for downloads.
+      Output ml/data/fields.geojson (25). Visual check: #1–#3 (sports) may be artificial turf —
+      left for Step 2's rule. tests ml/test_get_fields.py 20/20.
+- STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
+  (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
+  unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.
+  If too few sports fields remain, add replacements.
 
 ## Known gaps / TODO
 - Overlay drawn as lon/lat-grid image on Web Mercator map: fine for field-sized areas, slight
