@@ -206,41 +206,6 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
       IP (10.0.0.118 on 2026-10-31); backend :8000 not reachable from Wi-Fi (good). Wi-Fi profile
       was Public + no Node firewall rule → student must set Private / allow Node. Phone untested.
 
-## AI photo check (plan: `docs/STAGE_9_PHOTO_AI.md`, for WAICY, due Nov 29, 2026)
-Note: the doc calls it "Stage 9", but Stage 9 above is accounts; this is the photo AI work.
-Do ONE step at a time; after each, stop and tell the student what changed, how to test, and
-what success looks like.
-
-Non-negotiable rules for this stage:
-- The photo AI gives a **suggestion with a confidence**, never a diagnosis. UI text must say so.
-- Never invent accuracy numbers. Only report numbers printed by `evaluate.py`.
-- Train/test split must be **by field/site**, not random by photo (photos of the same field
-  in both sets would make accuracy look better than it is).
-- Uploaded photos are **not saved** by default (matches the Take9 security answer).
-  Only save if the user ticks "Allow this photo to improve the model," and strip GPS/EXIF first.
-- Validate uploads: images only (jpg/png/webp), max 10 MB.
-- Dormancy warning: in late fall/winter Colorado grass turns brown naturally. Record the date
-  of every photo; the UI should note that brown turf in the off-season may be normal dormancy.
-
-Progress:
-- Steps 1-5 BUILT 2026-10-31 while student was away (student asked for all code, no photos yet).
-      Full report: `docs/STAGE_9_PROGRESS.md`. Commits: restore point bbaec24, then 63736eb (1),
-      db019b0 (2), b989847 (3), 72bc3c0 (4), d1c655b (5). Not pushed.
-  - [~] Step 1 — ml/data/<label>/, ml/photos.csv (header only), ml/dataset.py (shared checks;
-        site names case/space-insensitive), ml/check_dataset.py. Photo files git-ignored (GPS).
-  - [~] Step 2 — ml/clip_model.py (openai/clip-vit-base-patch32, PROMPTS, no_grad per call,
-        embeddings cache ml/embeddings.npz), ml/zero_shot.py, ml/report.py.
-  - [~] Step 3 — ml/train.py (StandardScaler + LogisticRegression balanced, REGULARIZATION_C 1.0;
-        saves ml/model/turf_photo_clf.joblib with cutoff), ml/evaluate.py (leave-one-site-out or
-        5 GroupKFold; writes ml/results.md). Without scaling all probs ~25% (fixed).
-  - [~] Step 4 — backend/photo_ai.py + POST /api/photo/analyze; zero-shot until model file
-        exists ("zero-shot (not yet trained)"); in-memory only (MultiPartParser.spool_max_size
-        raised); opt-in save to ml/inbox/ with EXIF/GPS stripped; EXIF date → off_season.
-  - [~] Step 5 — frontend/src/PhotoCheck.jsx under the inspection card (Chrome-verified).
-  - Tests: test_photo_ai.py 21, ml/test_ml.py --with-model 32 (generated images only, never
-    ml/data; no accuracy reported). NO real photos, NO trained model, NO accuracy numbers yet.
-  - [ ] Step 6 — waits for real results.
-
 ## Known gaps / TODO
 - Overlay drawn as lon/lat-grid image on Web Mercator map: fine for field-sized areas, slight
   stretch possible near the 5 km max.

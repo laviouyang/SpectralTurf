@@ -5,4 +5,3 @@ python-dotenv>=1.0
 numpy>=1.26
 tifffile>=2024.1
 pillow>=11.0
-python-multipart>=0.0.20  # photo uploads (POST /api/photo/analyze)

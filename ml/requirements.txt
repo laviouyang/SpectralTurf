@@ -1,9 +1,0 @@
-# Photo AI libraries (install into the backend venv, CPU only, no GPU needed):
-#   pip install torch --index-url https://download.pytorch.org/whl/cpu
-#   pip install -r ml/requirements.txt
-# torch is listed here too, so the second command checks it is present.
-torch>=2.5
-transformers>=4.45
-scikit-learn>=1.5
-joblib>=1.4
-httpx>=0.27  # only for the tests (FastAPI's test client)
