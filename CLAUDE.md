@@ -206,6 +206,38 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
       IP (10.0.0.118 on 2026-10-31); backend :8000 not reachable from Wi-Fi (good). Wi-Fi profile
       was Public + no Node firewall rule → student must set Private / allow Node. Phone untested.
 
+## Stage 10 — AI weather-aware turf prediction (plan: `docs/STAGE_10_AI_PREDICTION.md`, WAICY, due Nov 29, 2026)
+Work ONE step at a time unless the student says otherwise. Before each step: git commit.
+After each step: run existing + new tests, confirm the original app still works, commit, then
+tell the student what changed, the exact test command, and what success looks like.
+(A photo-AI "Stage 9" was built and then fully removed on 2026-11-01 at the student's request.)
+
+ADD-ON ONLY — do not replace anything:
+- Everything SpectralTurf already does must keep working exactly the same: place search,
+  drawing, Exclude tool, NDVI/NDMI analysis, the 0.20 / 5% inspection flag, map layers,
+  data-quality panel, and all existing tests.
+- All new code goes in **new files** (`ml/`, `backend/predict.py`, a new React component).
+- Existing files may only be changed to **add** things: register the new endpoint in `main.py`,
+  and add the "AI Weather Check" panel **below** the current results. Never rename, rewrite,
+  move, or delete an existing function, endpoint, component, or test.
+- The existing analysis must still run and show results even if the AI part fails or is
+  off-season; the AI panel just shows its own message.
+- If a step seems to require changing existing behavior, stop and ask the student first.
+
+Non-negotiable rules for this stage:
+- Every number shown to users or in slides must come from real data and `evaluate.py` output.
+  Never invent accuracy or example results.
+- Test the model on a **year it never saw** (time split), and separately on **fields it never
+  saw** (group split). Report both honestly, even if results are weak.
+- The model's output is a **prioritization signal**, not a diagnosis or watering instruction.
+- Growing season only (April–October). Outside it, show "Off-season — grass may be dormant."
+- Respect API limits: cache all downloaded data to disk, never re-download what's cached,
+  and stop and report if the Copernicus processing quota is getting low.
+- Weather data credit: "Weather data by Open-Meteo.com". Field outlines: "© OpenStreetMap contributors".
+
+Progress:
+- [ ] Step 1 — Collect field outlines (ml/get_fields.py → ml/data/fields.geojson)
+
 ## Known gaps / TODO
 - Overlay drawn as lon/lat-grid image on Web Mercator map: fine for field-sized areas, slight
   stretch possible near the 5 km max.
