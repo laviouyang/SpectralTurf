@@ -255,7 +255,7 @@ Steps (details in the plan doc):
   watering or diagnose, own data only, rate limits) · 11 README, slides, demo.
   Student said: STOP before building Steps 8–10 and wait for their go-ahead.
 
-Progress (2026-11-01: only Step 1 started; NO ml/results.md, NO real numbers yet):
+Progress:
 - [x] Step 1 — Field outlines (2026-11-01). STUDENT DECISION: AI must work on ANY grass field,
       incl. parks → mix 10 "sports" / 5 "baseball" / 10 "park" (FIELDS_PER_KIND). ml/get_fields.py:
       2 Overpass queries cached in ml/data/cache/ (git-ignored): pitches (4,494) and landuse=grass
@@ -268,6 +268,28 @@ Progress (2026-11-01: only Step 1 started; NO ml/results.md, NO real numbers yet
       Overpass was blocked by Cloudflare WARP on this PC; student turned WARP off for downloads.
       Output ml/data/fields.geojson (25). Visual check: #1–#3 (sports) may be artificial turf —
       left for Step 2's rule. tests ml/test_get_fields.py 20/20.
+- [x] Step 2 — ml/get_ndvi_history.py: CDSE Statistical API https://sh.dataspace.copernicus.eu/api/v1/statistics
+      (P1D, resx/resy = 10 m in degrees, NDVI NaN for SCL-rejected px, "clear" output = clear
+      fraction). VERIFIED: grass_B 2026-08-05 = 0.754 (same as Stage 3). PU from header
+      x-processingunits-spent: 12.1 PU per field (7 seasons), 302.5 total; PU_BUDGET_PER_RUN 1000.
+      Cache ml/data/cache/stats/. 405–442 usable dates/field (>= 80% clear). All 25 kept by
+      p90 >= 0.3 rule. FLAGGED (kept, per rule): sports #1 osm_way_1288554499, #2 osm_way_544154803,
+      #3 osm_way_337232615 = flat seasonal NDVI 0.3–0.5, likely artificial turf (edge pixels mix
+      in grass so p90 > 0.3); park #19 osm_way_1256470760 jumped 0.10→0.62 in 2024 (renovation?).
+      Haze can pass SCL (e.g. a 0.578 day among ~0.8s) — a noise source.
+- [x] Step 3 — ml/get_weather.py: Open-Meteo archive, 2,557 days/field, 0 missing, 17 grid points.
+- [x] Step 4 — ml/build_dataset.py → ml/data/dataset.csv: 10,443 rows, 25 fields; features only
+      from before the image day; MAX_GAP_DAYS 45; field kind NOT a feature.
+- [x] Step 5 — ml/train.py + ml/evaluate.py → ml/results.md, feature_importance.png,
+      ml/model/ndvi_model.joblib. v1 (results_v1.md) did NOT beat "same as last time" (field size
+      was #2 input = field fingerprint). v2 (made AFTER seeing v1 test → slightly optimistic):
+      ChangeModel = prev NDVI + HistGBR-predicted change, no area_m2. Settings chosen on 2024
+      (lr 0.1, 100 iters, depth 3; val MAE 0.0578). Cutoff 2 x 0.0578 = 0.1156 (6.4% of 2024 dates).
+      RESULTS (bootstrap over fields, 1000x): 2025 model 0.0507 vs last 0.0513 → NO CLEAR
+      DIFFERENCE; unseen fields 0.0542 vs 0.0542 → NO CLEAR DIFFERENCE; unseen fields with prev
+      image 8+ days old (662 rows) → model reliably 13% better (0.0088, 95% +0.0019..+0.0145);
+      2025 8+ days (102 rows) +4%, inconclusive. Weather inputs have tiny importance (fields are
+      watered). STOPPED after Step 5 to let the student decide how to proceed (2026-11-01).
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.
