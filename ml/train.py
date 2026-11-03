@@ -155,4 +155,7 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Run main() from the module "train" (not "__main__"), so the saved model file refers to
+    # train.ChangeModel and the backend (backend/predict.py) can load it.
+    import train
+    sys.exit(train.main())

@@ -290,6 +290,22 @@ Progress:
       image 8+ days old (662 rows) → model reliably 13% better (0.0088, 95% +0.0019..+0.0145);
       2025 8+ days (102 rows) +4%, inconclusive. Weather inputs have tiny importance (fields are
       watered). STOPPED after Step 5 to let the student decide how to proceed (2026-11-01).
+- [ ] Steps 6–7 — NOT built (no /api/ai/weather-check endpoint, no AI Weather Check panel).
+      The weather-check ENGINE exists in backend/predict.py (built for Step 8).
+- [x] Step 8 — My Fields ranking (2026-11-02, student asked for Steps 8+9). backend/predict.py:
+      weather_check(geometry, exclusions, as_of) = Statistical API last 60 days (same evalscript,
+      80% clear; exclusions become holes if valid, else not used + note) + Open-Meteo (archive up
+      to today-6, forecast service after) → expected vs actual for the latest clear image
+      (cutoff 0.1156) + next-week risk (target as_of+7; High drop>=cutoff, Medium>=0.0578, else
+      Low; project choices). Any input outside training feature_ranges → no number ("Unknown").
+      NOTE training days_since_prev range is only 1–20 days. Cache backend/ai_cache/
+      (git-ignored); DAILY_PU_BUDGET 100; ~0.5 PU per field. rank_my_fields: distinct saved
+      fields (READ ONLY via accounts.list_analyses), max 10, ranked by not-explained → risk →
+      difference. POST /api/ai/my-fields {as_of} (401 if logged out). Frontend MyFields.jsx,
+      sidebar section "5. My Fields — AI ranking" ("Check as of" + "Rank my fields", "Show on
+      map"). train.py now runs main() as module `train` so the model pickles as train.ChangeModel
+      (retrained: identical settings/MAE). Tests backend/test_predict.py. Verified live as of
+      2026-08-15 (3 fields, all "Weather explains this", Low) and off-season message in Chrome.
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.

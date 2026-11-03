@@ -15,3 +15,6 @@ __pycache__/
 
 # Stage 10: raw downloads (re-creatable; never re-downloaded while present)
 ml/data/cache/
+
+# Stage 10: AI check downloads (re-creatable cache)
+backend/ai_cache/

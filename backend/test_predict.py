@@ -1,0 +1,181 @@
+"""
+test_predict.py - Offline checks for backend/predict.py (Stage 10). No network is used:
+downloads are replaced by small MADE-UP inputs that only test the rules. Numbers from these
+fake inputs mean nothing and are never reported.
+
+Run from the backend folder:   python test_predict.py
+"""
+
+import tempfile
+from datetime import date, timedelta
+from pathlib import Path
+
+import numpy as np
+
+import accounts
+import predict
+
+passed = 0
+
+
+def check(name, condition):
+    global passed
+    assert condition, name
+    passed += 1
+    print("PASS", name)
+
+
+def square(west, south, size=0.002):
+    ring = [[west, south], [west + size, south], [west + size, south + size], [west, south + size], [west, south]]
+    return {"type": "Polygon", "coordinates": [ring]}
+
+
+# ---- A fake model and fake downloads ----
+class FakeModel:
+    """Predicts previous NDVI + `change` (column 0 is prev_ndvi)."""
+    change = 0.0
+
+    def predict(self, X):
+        return X[:, 0] + self.change
+
+
+fake_model = FakeModel()
+wide = {name: [-1e9, 1e9] for name in predict.train.MODEL_FEATURES}
+fake_bundle = {"model": fake_model, "features": predict.train.MODEL_FEATURES, "typical_error": 0.05,
+               "weather_cutoff": 0.10, "feature_ranges": wide}
+predict.load_model = lambda: fake_bundle
+
+ndvi_rows = []
+weather = {(date(2025, 5, 1) + timedelta(days=k)).isoformat(): (1.0, 25.0, 4.0) for k in range(200)}
+downloads = {"ndvi": 0, "weather": 0}
+
+
+def fake_fetch_ndvi(geometry, start, end):
+    downloads["ndvi"] += 1
+    return [r for r in ndvi_rows if str(start) <= r["date"] <= str(end)]
+
+
+def fake_fetch_weather(lon, lat, start, end):
+    downloads["weather"] += 1
+    return weather, "fake weather"
+
+
+predict.fetch_ndvi = fake_fetch_ndvi
+predict.fetch_weather = fake_fetch_weather
+field = square(-104.88, 39.63)
+
+# ---- Season ----
+r = predict.weather_check(field, [], date(2025, 11, 15))
+check("1. off-season (November) -> 'Off-season' message, no numbers, nothing downloaded",
+      r["status"] == "off_season" and r["message"] == predict.OFF_SEASON and "actual_ndvi" not in r
+      and downloads == {"ndvi": 0, "weather": 0})
+check("2. April and October are in season; March is not",
+      predict.in_season(date(2025, 4, 1)) and predict.in_season(date(2025, 10, 31))
+      and not predict.in_season(date(2025, 3, 31)))
+
+# ---- Not enough clear images ----
+ndvi_rows[:] = [{"date": "2025-07-20", "ndvi_mean": 0.7, "clear_fraction": 1.0}]
+r = predict.weather_check(field, [], date(2025, 7, 25))
+check("3. fewer than 2 clear images -> insufficient evidence, no numbers",
+      r["status"] == "insufficient_evidence" and "actual_ndvi" not in r)
+
+# ---- Expected vs actual ----
+ndvi_rows[:] = [{"date": "2025-07-10", "ndvi_mean": 0.70, "clear_fraction": 1.0},
+                {"date": "2025-07-20", "ndvi_mean": 0.55, "clear_fraction": 1.0}]
+fake_model.change = 0.0  # expects "same as last time" = 0.70; actual 0.55 is 0.15 below
+r = predict.weather_check(field, [], date(2025, 7, 25))
+check("4. actual far below expected (0.15 > cutoff 0.10) -> weather does NOT explain this",
+      r["check"]["weather_explains"] is False and r["check"]["difference"] == -0.15
+      and "inspect irrigation" in r["check"]["message"])
+fake_model.change = -0.10  # the model expects a 0.10 drop from the weather -> expected 0.60
+r = predict.weather_check(field, [], date(2025, 7, 25))
+check("5. drop the model expected from the weather -> weather explains this",
+      r["check"]["weather_explains"] is True and r["check"]["expected_ndvi"] == 0.6)
+check("6. latest image and dates come from the real (here: fake) data",
+      r["last_image_date"] == "2025-07-20" and r["previous_image_date"] == "2025-07-10" and r["actual_ndvi"] == 0.55)
+
+# ---- Next-week risk ----
+check("7. risk levels: drop >= cutoff High, >= typical error Medium, else Low",
+      predict.risk_level(-0.12, fake_bundle) == "High" and predict.risk_level(-0.06, fake_bundle) == "Medium"
+      and predict.risk_level(-0.01, fake_bundle) == "Low" and predict.risk_level(0.05, fake_bundle) == "Low")
+fake_model.change = -0.15
+r = predict.weather_check(field, [], date(2025, 7, 25))
+check("8. next-week prediction is for 7 days after 'as of'",
+      r["risk_next_week"]["target_date"] == "2025-08-01" and r["risk_next_week"]["level"] == "High")
+fake_bundle["feature_ranges"] = {**wide, "days_since_prev": [1, 10]}  # 2025-08-01 is 12 days after the image
+r = predict.weather_check(field, [], date(2025, 7, 25))
+check("9. input outside the training range -> risk 'Unknown', NO number",
+      r["risk_next_week"]["level"] == "Unknown" and "predicted_ndvi" not in r["risk_next_week"]
+      and "days since the last clear image" in r["risk_next_week"]["message"])
+fake_bundle["feature_ranges"] = wide
+del weather["2025-07-15"]
+r = predict.weather_check(field, [], date(2025, 7, 25))
+check("10. a missing weather day -> not checked, never filled in",
+      r["check"]["status"] == "insufficient_evidence")
+weather["2025-07-15"] = (1.0, 25.0, 4.0)
+
+# ---- Excluded areas become holes ----
+inner = square(-104.8795, 39.6305, 0.0005)
+shape, note = predict.field_geometry(field, [inner])
+check("11. an exclusion inside the outline becomes a hole", len(shape["coordinates"]) == 2 and note is None)
+shape, note = predict.field_geometry(field, [square(-104.8790, 39.6290, 0.003)])
+check("12. an exclusion reaching outside -> not used, and the user is told",
+      len(shape["coordinates"]) == 1 and "NOT used" in note)
+shape, note = predict.field_geometry(field, [inner, square(-104.8793, 39.6307, 0.0005)])
+check("13. overlapping exclusions -> not used, and the user is told", len(shape["coordinates"]) == 1 and note)
+
+# ---- Step 8: My Fields ranking ----
+with tempfile.TemporaryDirectory() as tmp:
+    db = accounts.connect(Path(tmp) / "test.db")
+    alice, bob = accounts.sign_up(db, "alice_1", "password123"), accounts.sign_up(db, "bob_1", "password123")
+    alice_id, bob_id = accounts.user_for_token(db, alice)["id"], accounts.user_for_token(db, bob)["id"]
+    fake_result = {"observation": {"date": "2025-07-20", "tile_cloud_cover": 0},
+                   "pixels": {"valid_after_masking": 100, "valid_fraction": 1.0},
+                   "ndvi": {"median": 0.7}, "ndmi": {"median": 0.2}, "status": "ok"}
+    fields = {"A": square(-104.80, 39.60), "B": square(-104.81, 39.61), "C": square(-104.82, 39.62)}
+    for name in ("A", "B", "C"):
+        accounts.save_analysis(db, alice_id, name, fields[name], [], "2025-06-01", "2025-08-31", fake_result)
+    accounts.save_analysis(db, alice_id, "A again", fields["A"], [], "2025-06-01", "2025-08-31", fake_result)
+    accounts.save_analysis(db, bob_id, "Bob's field", square(-104.90, 39.70), [], "2025-06-01", "2025-08-31", fake_result)
+
+    def fake_check(geometry, exclusions, as_of):
+        name = {str(v): k for k, v in fields.items()}.get(str(geometry))
+        if name == "C":
+            raise predict.PredictError("Copernicus answered HTTP 500.")
+        explains = name != "B"  # B: weather does NOT explain it -> should come first
+        return {"status": "ok", "check": {"status": "ok", "weather_explains": explains,
+                                          "difference": -0.2 if name == "B" else 0.0},
+                "risk_next_week": {"level": "Low"}}
+
+    ranked = predict.rank_my_fields(accounts.list_analyses(db, alice_id), date(2025, 7, 25), check=fake_check)
+    names = [e["field"]["name"] for e in ranked["fields"]]
+    check("14. ranking: 'weather does NOT explain' first, failed checks last (with their reason)",
+          names[0] == "B" and names[-1] == "C" and ranked["fields"][-1]["result"]["status"] == "error")
+    check("15. a field saved twice appears once (newest name kept)",
+          len(names) == 3 and "A again" in names and "A" not in names)
+    check("16. a user only ever sees their OWN fields", "Bob's field" not in names)
+    bob_ranked = predict.rank_my_fields(accounts.list_analyses(db, bob_id), date(2025, 7, 25), check=fake_check)
+    check("17. ...and Bob only sees his", [e["field"]["name"] for e in bob_ranked["fields"]] == ["Bob's field"])
+    off = predict.rank_my_fields(accounts.list_analyses(db, alice_id), date(2025, 12, 1), check=fake_check)
+    check("18. off-season ranking -> message, no checks", off["status"] == "off_season" and off["fields"] == [])
+    before = db.execute("SELECT COUNT(*) FROM saved_analyses").fetchone()[0]
+    predict.rank_my_fields(accounts.list_analyses(db, alice_id), date(2025, 7, 25), check=fake_check)
+    check("19. ranking only READS the accounts database",
+          db.execute("SELECT COUNT(*) FROM saved_analyses").fetchone()[0] == before)
+    empty = predict.rank_my_fields([], date(2025, 7, 25), check=fake_check)
+    check("20. no saved fields -> a helpful message", empty["status"] == "no_fields")
+    db.close()
+
+# ---- The endpoint: not logged in ----
+from fastapi.testclient import TestClient  # noqa: E402
+import main  # noqa: E402
+
+client = TestClient(main.app)
+response = client.post("/api/ai/my-fields", json={"as_of": "2025-07-25"})
+check("21. /api/ai/my-fields without logging in -> 401 with the 'Log in' message",
+      response.status_code == 401 and "Log in and analyze fields" in response.json()["detail"])
+response = client.post("/api/ai/my-fields", json={"as_of": (date.today() + timedelta(days=3)).isoformat()},
+                       headers={"Authorization": "Bearer not-a-real-token"})
+check("22. a fake token is treated as logged out", response.status_code == 401)
+
+print(f"\nAll {passed} predict tests passed.")

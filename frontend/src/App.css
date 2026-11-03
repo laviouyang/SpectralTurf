@@ -373,3 +373,13 @@ pre {
   margin-top: 4px;
   align-items: center;
 }
+
+/* Stage 10: My Fields ranking */
+.ranked-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ranked-field {
+  font-size: 0.85rem;
+}

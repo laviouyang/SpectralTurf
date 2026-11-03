@@ -8,6 +8,7 @@ Endpoints:
   GET  /api/test/indices      -> same analysis as /api/analyze, but for a box (easy to test)
   POST /api/auth/signup, /api/auth/login, /api/auth/logout, GET /api/auth/me -> accounts
   GET  /api/history, DELETE /api/history/{id} -> a logged-in user's saved analyses
+  POST /api/ai/my-fields      -> Stage 10 Step 8: the user's saved fields ranked by the AI check
 
 Run it with:   uvicorn main:app --reload
 Then open:     http://localhost:8000/docs
@@ -25,6 +26,7 @@ from pydantic import BaseModel, Field
 
 import accounts
 import indices
+import predict
 import render
 import sentinel
 
@@ -291,3 +293,32 @@ def test_indices(
         raise HTTPException(status_code=400, detail="West must be less than east, and south less than north.")
     geometry = sentinel.box_polygon(west, south, east, north)
     return run_analysis(geometry, start, end, max_cloud)
+
+
+# ---------------------------------------------------------------------------
+# Stage 10: AI weather-aware checks (backend/predict.py). Added on; nothing above changed.
+# ---------------------------------------------------------------------------
+
+def check_as_of(as_of):
+    """The AI checks use real data up to "as of", so it can't be in the future."""
+    if as_of > date.today():
+        raise HTTPException(status_code=400, detail="'As of' can't be in the future.")
+    if as_of < date(2019, 1, 1):
+        raise HTTPException(status_code=400, detail="'As of' must be 2019 or later.")
+
+
+class MyFieldsRequest(BaseModel):
+    as_of: date = Field(default_factory=date.today, description="Check the fields as of this day")
+
+
+@app.post("/api/ai/my-fields")
+def my_fields(body: MyFieldsRequest, user=Depends(current_user), db=Depends(get_db)):
+    """Step 8: rank the logged-in user's OWN saved fields. Only READS the accounts database."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="Log in and analyze fields to see your ranked list.")
+    check_as_of(body.as_of)
+    saved = accounts.list_analyses(db, user["id"])  # only this user's rows
+    try:
+        return predict.rank_my_fields(saved, body.as_of)
+    except predict.PredictError as e:
+        raise HTTPException(status_code=502, detail=str(e))

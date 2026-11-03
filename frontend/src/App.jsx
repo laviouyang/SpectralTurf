@@ -11,6 +11,7 @@ import MapView from './MapView.jsx';
 import SearchBox from './SearchBox.jsx';
 import Results from './Results.jsx';
 import AccountPanel from './AccountPanel.jsx';
+import MyFields from './MyFields.jsx';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
@@ -324,6 +325,11 @@ export default function App() {
               </p>
             )}
             {result && <Results result={result} layer={layer} onLayerChange={setLayer} />}
+          </section>
+
+          <section>
+            <h2>5. My Fields — AI ranking</h2>
+            <MyFields user={user} onShow={handleShowSaved} />
           </section>
 
           <section className="limits">

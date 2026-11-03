@@ -113,3 +113,10 @@ export async function getHistory() {
 export function deleteHistoryItem(id) {
   return request(`/api/history/${id}`, { method: 'DELETE' });
 }
+
+// ---- Stage 10: AI checks ----
+
+// Step 8: your saved fields, ranked by the AI weather check ("check these first").
+export function rankMyFields(asOf) {
+  return request('/api/ai/my-fields', { method: 'POST', body: { as_of: asOf } });
+}
