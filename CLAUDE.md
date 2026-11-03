@@ -306,6 +306,18 @@ Progress:
       map"). train.py now runs main() as module `train` so the model pickles as train.ChangeModel
       (retrained: identical settings/MAE). Tests backend/test_predict.py. Verified live as of
       2026-08-15 (3 fields, all "Weather explains this", Low) and off-season message in Chrome.
+- [x] Step 9 — What-if simulator (2026-11-02). predict.what_if: scenario = the 14 days after the
+      latest clear image (WHAT_IF_DAYS; model saw gaps 1–20 only, so 0–14 dry days, not 0–21);
+      weather before the image stays real. Sliders: dry_days (last X days no rain), rain_mm
+      (spread over the other days), avg_high_c (every day). ET0 = 0.179 x high + 0.55 mm/day,
+      fitted to real Apr–Oct 2019–2025 training weather (R² 0.71). Slider limits from training
+      ranges (GET /api/ai/what-if/limits: rain 0–145, high 6–35 °C); any feature still outside →
+      "outside_training", no number. POST /api/ai/what-if {geometry?, exclude, as_of, dry_days,
+      rain_mm, avg_high_c, include_my_fields}. WhatIf.jsx = sidebar "6. What if? — AI weather
+      scenario" ("Run scenario", then auto-updates 0.6 s after a slider stops). REAL BEHAVIOR:
+      changes are small (14 dry days at 34 °C ≈ −0.02 NDVI); cool scenarios (15–20 °C) show
+      ≈ −0.05 because cool = autumn in training (pattern, not cause) → PATTERN_NOTE shown.
+      Nothing reached Medium/High on 3 real fields. Test account deleted after E2E check.
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.

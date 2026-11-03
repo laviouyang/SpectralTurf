@@ -448,3 +448,121 @@ def rank_my_fields(saved, as_of, check=weather_check):
     return {**base, "status": "ok", "fields": entries,
             "skipped": (f"Only your {MAX_RANKED_FIELDS} most recently saved fields are ranked "
                         f"({skipped} older ones left out to limit Copernicus use).") if skipped else None}
+
+
+# ---------------------------------------------------------------------------
+# Step 9: "What if?" weather scenarios (made-up weather, real field history)
+# ---------------------------------------------------------------------------
+# The scenario replaces the weather for the WHAT_IF_DAYS (14) days after the field's latest
+# clear image; the weather before that image stays real. The model then predicts NDVI on the
+# 14th day. 14 days because the model only ever saw gaps of 1-20 days between images.
+#   dry_days    the LAST X of those 14 days have no rain
+#   rain_mm     total rain, spread evenly over the other (14 - X) days
+#   avg_high_c  the high temperature on every one of the 14 days
+# Water demand (ET0) isn't a slider: it is estimated from the high temperature with a straight
+# line fitted to the real April-October weather of the 25 training fields (2019-2025).
+
+WHAT_IF_LABEL = "Scenario estimate from the AI model, not a forecast."
+PATTERN_NOTE = ("The AI learned patterns from past fields, not causes. For example, cool weather "
+                "in the training data usually meant autumn, when grass fades, so a cool scenario "
+                "can show a drop. Most training fields are watered, so rain and heat change the "
+                "estimate only a little.")
+_et0_fit = None
+
+
+def et0_from_temperature():
+    """(slope, intercept, R²) of daily ET0 vs daily high temperature, April-October 2019-2025."""
+    global _et0_fit
+    if _et0_fit is None:
+        highs, et0 = [], []
+        for path in sorted(WEATHER_HISTORY_DIR.glob("*.csv")):
+            for line in path.read_text(encoding="utf-8").splitlines()[1:]:
+                day, rain, tmax, e = line.split(",")
+                if int(day[5:7]) in GROWING_MONTHS and tmax and e:
+                    highs.append(float(tmax))
+                    et0.append(float(e))
+        if not highs:
+            raise PredictError("The training weather files (ml/data/weather/) are missing.")
+        highs, et0 = np.array(highs), np.array(et0)
+        slope, intercept = np.polyfit(highs, et0, 1)
+        r2 = 1 - np.var(et0 - (slope * highs + intercept)) / np.var(et0)
+        _et0_fit = (float(slope), float(intercept), float(r2))
+    return _et0_fit
+
+
+def what_if_limits(bundle=None):
+    """Slider ranges, taken from what the model saw in training (rounded inward)."""
+    bundle = bundle or load_model()
+    r = bundle["feature_ranges"]
+    return {"dry_days": [0, WHAT_IF_DAYS],
+            "rain_mm": [0, int(r["rain_14"][1])],
+            # every scenario day has the same high, so it must fit both the 7- and 14-day ranges
+            "avg_high_c": [int(np.ceil(max(r["tmax_7"][0], r["tmax_14"][0]))),
+                           int(np.floor(min(r["tmax_7"][1], r["tmax_14"][1])))],
+            "days": WHAT_IF_DAYS}
+
+
+def scenario_weather(weather, first_day, scenario):
+    """A copy of the real weather with the 14 scenario days replaced."""
+    dry, rain, high = scenario["dry_days"], scenario["rain_mm"], scenario["avg_high_c"]
+    if dry >= WHAT_IF_DAYS and rain > 0:
+        raise PredictError(f"With {WHAT_IF_DAYS} days without rain, the rain amount must be 0.")
+    slope, intercept, _ = et0_from_temperature()
+    et0 = max(0.0, slope * high + intercept)
+    wet_days = WHAT_IF_DAYS - dry
+    made_up = dict(weather)
+    for k in range(WHAT_IF_DAYS):
+        day = (first_day + timedelta(days=k)).isoformat()
+        made_up[day] = (rain / wet_days if k < wet_days else 0.0, float(high), et0)
+    return made_up
+
+
+def what_if(geometry, exclusions, as_of, scenario):
+    """The model's NDVI estimate for one field if the next 14 days had the scenario weather."""
+    base = {"as_of": as_of.isoformat(), "label": WHAT_IF_LABEL, "pattern_note": PATTERN_NOTE,
+            "scenario": scenario,
+            "accuracy_note": ACCURACY_NOTE, "credits": CREDITS}
+    if not in_season(as_of):
+        return {**base, "status": "off_season", "message": OFF_SEASON}
+    bundle = load_model()
+    snap = field_snapshot(geometry, exclusions, as_of)
+    if not snap["clear"]:
+        return {**base, "status": "insufficient_evidence",
+                "message": f"Insufficient evidence: no clear satellite image in the {LOOKBACK_DAYS} "
+                           f"days before {as_of}, so there is no starting NDVI."}
+    latest = snap["clear"][-1]
+    latest_day = date.fromisoformat(latest["date"])
+    target = latest_day + timedelta(days=WHAT_IF_DAYS)
+    weather = scenario_weather(snap["weather"], latest_day, scenario)
+    inputs = model_inputs(latest["ndvi_mean"], latest_day, target, weather)
+    result = {**base, "last_image_date": latest["date"], "start_ndvi": latest["ndvi_mean"],
+              "target_date": target.isoformat(), "geometry_note": snap["geometry_note"]}
+    if inputs is None:
+        return {**result, "status": "insufficient_evidence",
+                "message": "Real weather before the latest image is missing, so the AI can't run."}
+    unusual = outside_training(bundle, inputs)
+    if unusual:
+        return {**result, "status": "outside_training", "outside": unusual,
+                "message": "No estimate: this scenario is outside what the AI saw in training "
+                           f"({readable(unusual)}). The AI can't be trusted there."}
+    predicted = predict_one(bundle, inputs)
+    change = predicted - latest["ndvi_mean"]
+    slope, intercept, r2 = et0_from_temperature()
+    return {**result, "status": "ok", "predicted_ndvi": round(predicted, 3),
+            "predicted_change": round(change, 3), "risk_level": risk_level(change, bundle),
+            "et0_per_day_mm": round(max(0.0, slope * scenario["avg_high_c"] + intercept), 2),
+            "et0_note": (f"Water demand (ET0) estimated from the high temperature: "
+                         f"{slope:.3f} x high °C + {intercept:.2f} mm/day, a line fitted to real "
+                         f"2019-2025 Denver weather (explains {r2:.0%} of daily ET0).")}
+
+
+def what_if_my_fields(saved, as_of, scenario, run=what_if):
+    """The same scenario for each of the user's own saved fields (READ ONLY)."""
+    entries = []
+    for field in distinct_saved_fields(saved)[:MAX_RANKED_FIELDS]:
+        try:
+            result = run(field["geometry"], field["exclusions"], as_of, scenario)
+        except PredictError as e:
+            result = {"status": "error", "message": str(e)}
+        entries.append({"field": {k: field[k] for k in ("id", "name")}, "result": result})
+    return entries

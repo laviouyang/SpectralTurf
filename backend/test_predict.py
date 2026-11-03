@@ -178,4 +178,46 @@ response = client.post("/api/ai/my-fields", json={"as_of": (date.today() + timed
                        headers={"Authorization": "Bearer not-a-real-token"})
 check("22. a fake token is treated as logged out", response.status_code == 401)
 
+# ---- Step 9: What if? ----
+real = {(date(2025, 6, 1) + timedelta(days=k)).isoformat(): (5.0, 20.0, 3.0) for k in range(60)}
+made_up = predict.scenario_weather(real, date(2025, 7, 1), {"dry_days": 4, "rain_mm": 20, "avg_high_c": 30})
+scenario_days = [made_up[(date(2025, 7, 1) + timedelta(days=k)).isoformat()] for k in range(14)]
+check("23. scenario: last 4 of 14 days dry, 20 mm spread over the other 10, high 30 °C every day",
+      [d[0] for d in scenario_days] == [2.0] * 10 + [0.0] * 4 and all(d[1] == 30.0 for d in scenario_days))
+check("24. scenario: weather BEFORE the latest image stays real; the real data is not changed",
+      made_up["2025-06-30"] == (5.0, 20.0, 3.0) and real["2025-07-05"] == (5.0, 20.0, 3.0))
+slope, intercept, r2 = predict.et0_from_temperature()
+check("25. ET0 from temperature: fitted to the real training weather, hotter = more water demand",
+      slope > 0 and 0 < r2 < 1 and scenario_days[0][2] == max(0.0, slope * 30 + intercept))
+try:
+    predict.scenario_weather(real, date(2025, 7, 1), {"dry_days": 14, "rain_mm": 5, "avg_high_c": 30})
+    refused = False
+except predict.PredictError:
+    refused = True
+check("26. 14 dry days + some rain is refused (impossible scenario)", refused)
+
+ndvi_rows[:] = [{"date": "2025-07-20", "ndvi_mean": 0.70, "clear_fraction": 1.0}]
+fake_model.change = -0.07
+scenario = {"dry_days": 7, "rain_mm": 10, "avg_high_c": 30}
+r = predict.what_if(field, [], date(2025, 7, 25), scenario)
+check("27. what-if predicts 14 days after the latest image, with a risk level and the label",
+      r["status"] == "ok" and r["target_date"] == "2025-08-03" and r["risk_level"] == "Medium"
+      and r["label"] == "Scenario estimate from the AI model, not a forecast.")
+fake_bundle["feature_ranges"] = {**wide, "tmax_7": [0, 25]}
+r = predict.what_if(field, [], date(2025, 7, 25), scenario)
+check("28. scenario outside the training range -> warning and NO number",
+      r["status"] == "outside_training" and "predicted_ndvi" not in r and "temperature" in r["message"])
+fake_bundle["feature_ranges"] = wide
+check("29. what-if off-season -> 'Off-season' message",
+      predict.what_if(field, [], date(2025, 12, 1), scenario)["status"] == "off_season")
+limits = predict.what_if_limits({"feature_ranges": {**wide, "rain_14": [0, 145.1], "tmax_7": [1.8, 36.8],
+                                                     "tmax_14": [5.2, 35.3]}})
+check("30. slider limits come from the training ranges", limits["rain_mm"] == [0, 145]
+      and limits["avg_high_c"] == [6, 35] and limits["dry_days"] == [0, 14])
+response = client.post("/api/ai/what-if", json={"dry_days": 3, "rain_mm": 0, "avg_high_c": 30,
+                                               "include_my_fields": True})
+check("31. what-if for My Fields without logging in -> 401", response.status_code == 401)
+response = client.post("/api/ai/what-if", json={"dry_days": 14, "rain_mm": 5, "avg_high_c": 30})
+check("32. what-if endpoint refuses 14 dry days + rain (400)", response.status_code == 400)
+
 print(f"\nAll {passed} predict tests passed.")

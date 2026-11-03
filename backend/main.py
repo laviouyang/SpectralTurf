@@ -9,6 +9,7 @@ Endpoints:
   POST /api/auth/signup, /api/auth/login, /api/auth/logout, GET /api/auth/me -> accounts
   GET  /api/history, DELETE /api/history/{id} -> a logged-in user's saved analyses
   POST /api/ai/my-fields      -> Stage 10 Step 8: the user's saved fields ranked by the AI check
+  GET  /api/ai/what-if/limits, POST /api/ai/what-if -> Step 9: "What if?" weather scenarios
 
 Run it with:   uvicorn main:app --reload
 Then open:     http://localhost:8000/docs
@@ -320,5 +321,56 @@ def my_fields(body: MyFieldsRequest, user=Depends(current_user), db=Depends(get_
     saved = accounts.list_analyses(db, user["id"])  # only this user's rows
     try:
         return predict.rank_my_fields(saved, body.as_of)
+    except predict.PredictError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/api/ai/what-if/limits")
+def what_if_limits():
+    """Step 9: slider ranges, from what the AI saw in training."""
+    try:
+        return predict.what_if_limits()
+    except predict.PredictError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+class WhatIfRequest(BaseModel):
+    geometry: dict | None = Field(None, description="The field on screen (GeoJSON Polygon), optional")
+    exclude: list[dict] = Field(default_factory=list)
+    as_of: date = Field(default_factory=date.today)
+    dry_days: int = Field(..., ge=0, le=predict.WHAT_IF_DAYS, description="Last X of the 14 days have no rain")
+    rain_mm: float = Field(..., ge=0, le=500, description="Total rain over the other days, mm")
+    avg_high_c: float = Field(..., ge=-20, le=50, description="High temperature every day, °C")
+    include_my_fields: bool = Field(False, description="Also run it for my saved fields (logged in)")
+
+
+@app.post("/api/ai/what-if")
+def what_if(body: WhatIfRequest, user=Depends(current_user), db=Depends(get_db)):
+    """Step 9: run the trained model with the user's made-up weather. Only READS saved fields."""
+    check_as_of(body.as_of)
+    if body.dry_days >= predict.WHAT_IF_DAYS and body.rain_mm > 0:
+        raise HTTPException(status_code=400, detail=f"With {predict.WHAT_IF_DAYS} days without rain, "
+                                                    "the rain amount must be 0.")
+    try:
+        limits = predict.what_if_limits()
+        scenario = {"dry_days": body.dry_days, "rain_mm": body.rain_mm, "avg_high_c": body.avg_high_c}
+        answer = {"limits": limits, "label": predict.WHAT_IF_LABEL, "pattern_note": predict.PATTERN_NOTE,
+                  "accuracy_note": predict.ACCURACY_NOTE, "credits": predict.CREDITS}
+        if body.geometry is not None:
+            geometry = clean_polygon(body.geometry)
+            if len(body.exclude) > MAX_EXCLUDED_AREAS:
+                raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
+            exclusions = [clean_polygon(shape) for shape in body.exclude]
+            try:
+                sentinel.check_box(*sentinel.geometry_bbox(geometry))
+            except sentinel.SentinelError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            answer["current_field"] = predict.what_if(geometry, exclusions, body.as_of, scenario)
+        if body.include_my_fields:
+            if user is None:
+                raise HTTPException(status_code=401, detail="Log in to include My Fields.")
+            answer["my_fields"] = predict.what_if_my_fields(
+                accounts.list_analyses(db, user["id"]), body.as_of, scenario)
+        return answer
     except predict.PredictError as e:
         raise HTTPException(status_code=502, detail=str(e))

@@ -12,6 +12,7 @@ import SearchBox from './SearchBox.jsx';
 import Results from './Results.jsx';
 import AccountPanel from './AccountPanel.jsx';
 import MyFields from './MyFields.jsx';
+import WhatIf from './WhatIf.jsx';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
@@ -330,6 +331,15 @@ export default function App() {
           <section>
             <h2>5. My Fields — AI ranking</h2>
             <MyFields user={user} onShow={handleShowSaved} />
+          </section>
+
+          <section>
+            <h2>6. What if? — AI weather scenario</h2>
+            <WhatIf
+              geometry={check?.ok && !editing ? polygon.geojson : null}
+              exclude={exclusions.map((shape) => shape.geojson)}
+              user={user}
+            />
           </section>
 
           <section className="limits">

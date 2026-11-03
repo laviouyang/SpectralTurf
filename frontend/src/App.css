@@ -383,3 +383,15 @@ pre {
 .ranked-field {
   font-size: 0.85rem;
 }
+
+/* Stage 10: What if? sliders */
+.slider,
+.checkbox {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+.slider input {
+  display: block;
+  width: 100%;
+}

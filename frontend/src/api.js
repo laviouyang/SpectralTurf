@@ -120,3 +120,12 @@ export function deleteHistoryItem(id) {
 export function rankMyFields(asOf) {
   return request('/api/ai/my-fields', { method: 'POST', body: { as_of: asOf } });
 }
+
+// Step 9: slider ranges (from what the AI saw in training), and one "What if?" scenario.
+export function getWhatIfLimits() {
+  return request('/api/ai/what-if/limits');
+}
+
+export function runWhatIf(body) {
+  return request('/api/ai/what-if', { method: 'POST', body });
+}
