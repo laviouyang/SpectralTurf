@@ -270,4 +270,31 @@ check("38. the saved version 3 model loads in the backend and uses no earlier-ye
       real_v3["version"] == 3 and not any(f.startswith("own_") for f in real_v3["used_features"])
       and 0 < real_v3["typical_error"] < 0.2)
 
+# ---- What-if temperatures limited to what happened in that month (2026-11-07) ----
+ranges = predict.month_high_ranges()
+check("39. month ranges come from real 2019-2025 weather; August is warmer than April",
+      set(range(4, 11)) <= set(ranges) and ranges[8][0] > ranges[4][1] - 5 and ranges[8][1] > ranges[4][1])
+aug = predict.what_if_limits({"feature_ranges": {**wide, "rain_14": [0, 145.1], "tmax_7": [1.8, 36.8],
+                                                  "tmax_14": [5.2, 35.3]}}, month=8)
+check("40. limits with a month: temperature range = that month's real range, inside the training range",
+      aug["month"] == "August" and aug["avg_high_c"][0] == predict.month_temperature_limit(8)[0]
+      and aug["avg_high_c"][1] <= 35 and "Allowed in August" in aug["month_note"])
+check("41. the heat note is always shown under the sliders",
+      aug["heat_note"] == "Heat has little effect on watered fields in our data; dry spells matter more.")
+low_aug = predict.month_temperature_limit(8)[0]
+downloads.update(ndvi=0, weather=0)
+r = predict.what_if(field, [], date(2025, 8, 10), {"dry_days": 7, "rain_mm": 10, "avg_high_c": low_aug - 1})
+check("42. a temperature that never happened in that month -> no number, nothing downloaded",
+      r["status"] == "outside_training" and "predicted_ndvi" not in r and "August" in r["message"]
+      and downloads == {"ndvi": 0, "weather": 0})
+ndvi_rows[:] = [{"date": "2025-08-05", "ndvi_mean": 0.70, "clear_fraction": 1.0}]
+r = predict.what_if(field, [], date(2025, 8, 10), {"dry_days": 7, "rain_mm": 10, "avg_high_c": low_aug})
+check("43. the lowest allowed August temperature still gets an estimate", r["status"] == "ok")
+response = client.get("/api/ai/what-if/limits", params={"as_of": "2025-08-10"})
+check("44. limits endpoint with as_of returns that month's range", response.status_code == 200
+      and response.json()["month"] == "August")
+response = client.get("/api/ai/what-if/limits")
+check("45. limits endpoint without as_of still works as before", response.status_code == 200
+      and "month" not in response.json() and response.json()["dry_days"] == [0, 14])
+
 print(f"\nAll {passed} predict tests passed.")

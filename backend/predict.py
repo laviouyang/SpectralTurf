@@ -551,8 +551,64 @@ def et0_from_temperature():
     return _et0_fit
 
 
-def what_if_limits(bundle=None):
-    """Slider ranges, taken from what the model saw in training (rounded inward)."""
+# Shown under the sliders (from the version 3 What-if re-test, 2026-11-07).
+HEAT_NOTE = "Heat has little effect on watered fields in our data; dry spells matter more."
+MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August",
+               "September", "October", "November", "December"]
+_month_highs = None
+
+
+def month_high_ranges():
+    """{month: (lowest, highest)} 14-day average high temperature (°C) of every real 14-day
+    spell ENDING in that month, 2019-2025, at the training fields (ml/data/weather/). The
+    What-if only allows temperatures that actually happened in that month (student decision
+    2026-11-07): e.g. a 14-day spell averaging 20 °C never happened in August, so it can't be asked."""
+    global _month_highs
+    if _month_highs is None:
+        ranges = {}
+        for path in sorted(WEATHER_HISTORY_DIR.glob("*.csv")):
+            days = []
+            for line in path.read_text(encoding="utf-8").splitlines()[1:]:
+                day, _, tmax, _ = line.split(",")
+                days.append((day, float(tmax) if tmax else None))
+            for k in range(13, len(days)):
+                window = [t for _, t in days[k - 13: k + 1]]
+                if None in window:
+                    continue  # a missing day: skip the spell, never fill it in
+                month, avg = int(days[k][0][5:7]), sum(window) / 14
+                low, high = ranges.get(month, (avg, avg))
+                ranges[month] = (min(low, avg), max(high, avg))
+        if not ranges:
+            raise PredictError("The training weather files (ml/data/weather/) are missing.")
+        _month_highs = ranges
+    return _month_highs
+
+
+def month_temperature_limit(month):
+    """Allowed whole-degree slider range for a month (rounded inward), or None if unknown."""
+    if month not in month_high_ranges():
+        return None
+    low, high = month_high_ranges()[month]
+    return [int(np.ceil(low)), int(np.floor(high))]
+
+
+def what_if_limits(bundle=None, month=None):
+    """Slider ranges, taken from what the model saw in training (rounded inward). With a month
+    (April-October), the temperature range is also limited to what happened in that month."""
+    limits = _what_if_training_limits(bundle)
+    limits["heat_note"] = HEAT_NOTE
+    if month is not None and month in GROWING_MONTHS and month_temperature_limit(month):
+        low, high = month_temperature_limit(month)
+        overall = limits["avg_high_c"]
+        limits["avg_high_c"] = [max(low, overall[0]), min(high, overall[1])]
+        limits["month"] = MONTH_NAMES[month - 1]
+        limits["month_note"] = (f"Allowed in {MONTH_NAMES[month - 1]}: {limits['avg_high_c'][0]}-"
+                                f"{limits['avg_high_c'][1]} °C (14-day average highs that actually "
+                                "happened in that month, 2019-2025)")
+    return limits
+
+
+def _what_if_training_limits(bundle=None):
     bundle = bundle or load_model()
     r = bundle["feature_ranges"]
     return {"dry_days": [0, WHAT_IF_DAYS],
@@ -585,6 +641,12 @@ def what_if(geometry, exclusions, as_of, scenario):
             "accuracy_note": ACCURACY_NOTE, "credits": CREDITS}
     if not in_season(as_of):
         return {**base, "status": "off_season", "message": OFF_SEASON}
+    allowed = month_temperature_limit(as_of.month)
+    if allowed and not allowed[0] <= scenario["avg_high_c"] <= allowed[1]:
+        return {**base, "status": "outside_training", "outside": ["avg_high_c"],
+                "message": f"No estimate: in {MONTH_NAMES[as_of.month - 1]}, 14-day average highs in "
+                           f"2019-2025 were {allowed[0]}-{allowed[1]} °C. {scenario['avg_high_c']:g} °C "
+                           "never happened then, so the AI can't be trusted there."}
     bundle = load_model()
     snap = field_snapshot(geometry, exclusions, as_of)
     if not snap["clear"]:

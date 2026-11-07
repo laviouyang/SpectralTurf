@@ -52,9 +52,19 @@ export default function WhatIf({ geometry, exclude, user }) {
   const [error, setError] = useState('');
   const requestCount = useRef(0);
 
+  // Slider limits depend on the month of the date (only temperatures that really happened then).
   useEffect(() => {
-    getWhatIfLimits().then(setLimits).catch((e) => setError(e.message));
-  }, []);
+    let current = true;
+    getWhatIfLimits(asOf)
+      .then((data) => {
+        if (!current) return;
+        setLimits(data);
+        const [low, high] = data.avg_high_c;
+        setHigh((h) => Math.min(Math.max(h, low), high)); // keep the slider inside the allowed range
+      })
+      .catch((e) => current && setError(e.message));
+    return () => { current = false; };
+  }, [asOf]);
 
   const withMine = Boolean(user) && includeMine;
   const nothingToRun = !geometry && !withMine;
@@ -113,9 +123,15 @@ export default function WhatIf({ geometry, exclude, user }) {
       </label>
       <label className="slider">
         Average high temperature: <strong>{high} °C</strong> ({Math.round(high * 1.8 + 32)} °F)
+        <span className="slider-range">
+          {' '}— allowed {limits.avg_high_c[0]}–{limits.avg_high_c[1]} °C
+          {limits.month ? ` in ${limits.month}` : ''}
+        </span>
         <input type="range" min={limits.avg_high_c[0]} max={limits.avg_high_c[1]} step={1}
                value={high} onChange={(e) => setHigh(Number(e.target.value))} />
       </label>
+      {limits.month_note && <p className="muted">{limits.month_note}.</p>}
+      <p className="muted"><strong>{limits.heat_note}</strong></p>
       <p className="muted">
         Slider ranges = what the AI saw in training (2019–2025). Some combinations can still be
         outside it; then you get a warning instead of a number.

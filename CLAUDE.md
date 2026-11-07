@@ -336,6 +336,12 @@ Progress:
       (Gates 25 °C: 0 dry -0.059, 14 dry -0.080); 26-34 °C nearly flat; scenarios far cooler than
       normal (15-22 °C in Aug) now get NO number (outside training); ~6 °C below normal (23-25 °C) still
       shows a larger drop (learned from 198 rows / ~5 cool spells) -> PATTERN_NOTE updated.
+      MONTH LIMIT FIX (2026-11-07, student): What-if temperature only allowed if a real 14-day spell
+      ENDING in that month (as_of's month) averaged that high, 2019-2025 (predict.month_high_ranges,
+      ml/data/weather). Apr 6-20, May 12-27, Jun 14-33, Jul 25-34, Aug 26-35, Sep 22-33, Oct 6-28 °C
+      (also capped by training range). GET /api/ai/what-if/limits?as_of= adds month + month_note +
+      heat_note; what_if refuses others (no download). WhatIf.jsx reloads limits when the date
+      changes, clamps the slider, shows "allowed X–Y °C in <Month>" + HEAT_NOTE. Tests 39-45 (45/45).
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.

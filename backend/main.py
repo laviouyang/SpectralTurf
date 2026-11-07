@@ -326,10 +326,11 @@ def my_fields(body: MyFieldsRequest, user=Depends(current_user), db=Depends(get_
 
 
 @app.get("/api/ai/what-if/limits")
-def what_if_limits():
-    """Step 9: slider ranges, from what the AI saw in training."""
+def what_if_limits(as_of: date | None = None):
+    """Step 9: slider ranges, from what the AI saw in training. With as_of (added 2026-11-07),
+    the temperature range is limited to what actually happened in that month in 2019-2025."""
     try:
-        return predict.what_if_limits()
+        return predict.what_if_limits(month=as_of.month if as_of else None)
     except predict.PredictError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
@@ -352,7 +353,7 @@ def what_if(body: WhatIfRequest, user=Depends(current_user), db=Depends(get_db))
         raise HTTPException(status_code=400, detail=f"With {predict.WHAT_IF_DAYS} days without rain, "
                                                     "the rain amount must be 0.")
     try:
-        limits = predict.what_if_limits()
+        limits = predict.what_if_limits(month=body.as_of.month)
         scenario = {"dry_days": body.dry_days, "rain_mm": body.rain_mm, "avg_high_c": body.avg_high_c}
         answer = {"limits": limits, "label": predict.WHAT_IF_LABEL, "pattern_note": predict.PATTERN_NOTE,
                   "accuracy_note": predict.ACCURACY_NOTE, "credits": predict.CREDITS}

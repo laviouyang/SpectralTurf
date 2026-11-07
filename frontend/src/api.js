@@ -122,8 +122,9 @@ export function rankMyFields(asOf) {
 }
 
 // Step 9: slider ranges (from what the AI saw in training), and one "What if?" scenario.
-export function getWhatIfLimits() {
-  return request('/api/ai/what-if/limits');
+export function getWhatIfLimits(asOf) {
+  // asOf (optional): limit the temperature slider to what happened in that month, 2019-2025
+  return request(asOf ? `/api/ai/what-if/limits?as_of=${encodeURIComponent(asOf)}` : '/api/ai/what-if/limits');
 }
 
 export function runWhatIf(body) {
