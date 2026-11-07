@@ -318,6 +318,24 @@ Progress:
       changes are small (14 dry days at 34 °C ≈ −0.02 NDVI); cool scenarios (15–20 °C) show
       ≈ −0.05 because cool = autumn in training (pattern, not cause) → PATTERN_NOTE shown.
       Nothing reached Medium/High on 3 real fields. Test account deleted after E2E check.
+- [x] MODEL VERSION 3 (2026-11-07, student asked for improvements 1+2 + drop artificial turf; no new
+      fields). NEW files ml/build_dataset_v3.py (pair_features shared with the app), train_v3.py,
+      evaluate_v3.py, test_dataset_v3.py (13/13); outputs dataset_v3.csv (38,342 start->target pairs
+      7-20 days apart, 22 fields), model/ndvi_model_v3.joblib, results_v3.md, feature_importance_v3.png.
+      v2 files untouched (results_v2.md = copy of v2 results). Removed #1-#3 (EXCLUDED_FIELDS): Esri
+      photos Sep/Nov 2025 bright green + painted lines among dormant grass; S2 July 2025 NDVI 0.31-0.42
+      vs 0.74 real grass; flat Apr-Oct. Chosen on 2024: input set B (recent avg, trend, image quality,
+      weather vs Denver 2019-2024 normal), start = start image, lr 0.05/200/depth 3; val MAE 0.0611,
+      cutoff 0.1222. Own-usual-NDVI set C lost on 2024 (app needs no earlier-year downloads).
+      2025 TEST (run once): model 0.0577 vs last time 0.0686 (16% better, reliable), recent avg 0.0686,
+      seasonal 0.0859. Unseen fields: 0.0600 vs last 0.0694 (14%, reliable, 95% +0.0007..+0.0150),
+      vs recent average 0.0664 NOT clearly better. Beats v2 design on same question by 6% (reliable).
+      Still slightly optimistic (v3 ideas came after seeing v1/v2 tests). predict.py loads v3 if present
+      (v2 path kept; tests 33-38 added, 38/38): weather check compares latest image with newest image
+      7-20 days earlier. WHAT-IF RE-TEST (Aug 15 2026, 3 real fields): more dry days -> bigger drop
+      (Gates 25 °C: 0 dry -0.059, 14 dry -0.080); 26-34 °C nearly flat; scenarios far cooler than
+      normal (15-22 °C in Aug) now get NO number (outside training); ~6 °C below normal (23-25 °C) still
+      shows a larger drop (learned from 198 rows / ~5 cool spells) -> PATTERN_NOTE updated.
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.

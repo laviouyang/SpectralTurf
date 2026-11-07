@@ -30,6 +30,7 @@ units (PU) are counted per day and requests stop at DAILY_PU_BUDGET.
 
 import hashlib
 import json
+import math
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -44,12 +45,16 @@ BACKEND_DIR = Path(__file__).resolve().parent
 ML_DIR = BACKEND_DIR.parent / "ml"
 sys.path.insert(0, str(ML_DIR))
 import train  # noqa: E402,F401  (the model file refers to train.ChangeModel)
+import train_v3  # noqa: E402,F401  (version 3 model file refers to train_v3.ChangeModelV3)
+from build_dataset_v3 import MAX_DAYS_AHEAD, MIN_DAYS_AHEAD, pair_features  # noqa: E402
 from build_dataset import weather_features  # noqa: E402
 from get_ndvi_history import (  # noqa: E402  (same science as the training data)
     EVALSCRIPT, MIN_CLEAR_FRACTION, STATISTICS_URL, rows_from_answer, ten_meters_in_degrees,
 )
 
 MODEL_FILE = ML_DIR / "model" / "ndvi_model.joblib"
+# Version 3 (2026-11-07, ml/results_v3.md): used when present, else version 2 above.
+MODEL_V3_FILE = ML_DIR / "model" / "ndvi_model_v3.joblib"
 WEATHER_HISTORY_DIR = ML_DIR / "data" / "weather"
 CACHE_DIR = BACKEND_DIR / "ai_cache"
 
@@ -70,11 +75,11 @@ OFF_SEASON = "Off-season — grass may be dormant."
 LABEL = "AI estimate based on satellite + weather history. Confirm in person."
 CREDITS = ["Weather data by Open-Meteo.com",
            "Satellite data: Copernicus Sentinel-2 (Copernicus Data Space Ecosystem)"]
-# Real results from ml/results.md (evaluate.py, 2026-11-01). Update if the model is retrained.
-ACCURACY_NOTE = ("Tested on 2025 (a year it never saw) and on fields it never saw: overall it was "
-                 "about as accurate as simply assuming 'same as last time' (typical error about "
-                 "0.05 NDVI). On unseen fields it was reliably better (about 13%) when the last "
-                 "clear image was 8 or more days old. See ml/results.md.")
+# Real results from ml/results_v3.md (evaluate_v3.py, 2026-11-07). Update if the model is retrained.
+ACCURACY_NOTE = ("Tested 7-20 days ahead on 2025 (a year it never saw) and on fields it never saw: "
+                 "typical error about 0.06 NDVI, reliably lower than simply assuming 'same as last "
+                 "time' (16% lower in 2025, 14% on unseen fields). On unseen fields it was not clearly "
+                 "better than averaging the last few images. See ml/results_v3.md.")
 
 
 class PredictError(Exception):
@@ -92,9 +97,13 @@ def load_model():
     """The saved model plus its settings (typical error, cutoff, training ranges)."""
     global _bundle
     if _bundle is None:
-        if not MODEL_FILE.exists():
-            raise PredictError("The AI model has not been trained yet (run: python ml/train.py).")
-        _bundle = joblib.load(MODEL_FILE)
+        path = MODEL_V3_FILE if MODEL_V3_FILE.exists() else MODEL_FILE
+        if not path.exists():
+            raise PredictError("The AI model has not been trained yet (run: python ml/train_v3.py).")
+        bundle = joblib.load(path)
+        if any(name.startswith("own_") for name in bundle.get("used_features", [])):
+            raise PredictError("This model needs the field's earlier years, which the app doesn't download.")
+        _bundle = bundle
     return _bundle
 
 
@@ -103,14 +112,33 @@ READABLE = {"prev_ndvi": "starting NDVI", "days_since_prev": "days since the las
             "rain_7": "rain", "rain_14": "rain", "rain_30": "rain",
             "et0_7": "water demand (ET0)", "et0_14": "water demand (ET0)", "et0_30": "water demand (ET0)",
             "balance_14": "rain minus water demand", "balance_30": "rain minus water demand",
-            "tmax_7": "temperature", "tmax_14": "temperature", "day_of_year": "time of year"}
+            "tmax_7": "temperature", "tmax_14": "temperature", "day_of_year": "time of year",
+            # version 3 inputs
+            "start_ndvi": "starting NDVI", "recent_mean": "recent NDVI", "trend_per_day": "recent NDVI trend",
+            "start_clear": "image quality", "start_std": "image quality",
+            "days_ahead": "days since the last clear image",
+            "rain_14_vs_normal": "rain compared with normal",
+            "tmax_7_vs_normal": "temperature compared with normal",
+            "tmax_14_vs_normal": "temperature compared with normal",
+            "balance_14_vs_normal": "rain minus water demand compared with normal"}
+# Inputs that may be missing (the model learned what to do then): only one recent image -> no trend.
+MAY_BE_MISSING = {"trend_per_day", "own_gap", "own_step"}
+
+
+def is_v3(bundle):
+    return bundle.get("version") == 3
 
 
 def outside_training(bundle, features):
-    """Names of inputs outside the range the model saw in training (empty list = all fine)."""
+    """Names of inputs outside the range the model saw in training (empty list = all fine).
+    A missing value counts as outside, except for inputs that were also missing in training."""
     ranges = bundle["feature_ranges"]
-    return [name for name in bundle["features"]
-            if not ranges[name][0] <= features[name] <= ranges[name][1]]
+
+    def missing(value):
+        return isinstance(value, float) and math.isnan(value)
+    return [name for name in bundle.get("used_features", bundle["features"])
+            if not (missing(features[name]) and name in MAY_BE_MISSING)
+            and (missing(features[name]) or not ranges[name][0] <= features[name] <= ranges[name][1])]
 
 
 def readable(names):
@@ -311,6 +339,27 @@ def model_inputs(prev_ndvi, prev_day, target_day, weather):
             "day_of_year": target_day.timetuple().tm_yday}
 
 
+def inputs_from(bundle, clear, start_index, target_day, weather):
+    """Model inputs for predicting NDVI on target_day, starting from the clear image
+    clear[start_index]. Version 3 uses the same function as its training data
+    (ml/build_dataset_v3.pair_features); version 2 uses model_inputs."""
+    if is_v3(bundle):
+        return pair_features(clear[: start_index + 1], target_day, weather, bundle["weather_normal"], [])
+    start = clear[start_index]
+    return model_inputs(start["ndvi_mean"], date.fromisoformat(start["date"]), target_day, weather)
+
+
+def start_for_check(bundle, clear):
+    """Which earlier image the latest one is checked against: version 2 = the image just before;
+    version 3 = the newest image 7-20 days earlier (what it was trained on). None if there is none."""
+    if not is_v3(bundle):
+        return len(clear) - 2
+    latest_day = date.fromisoformat(clear[-1]["date"])
+    fits = [i for i in range(len(clear) - 1)
+            if MIN_DAYS_AHEAD <= (latest_day - date.fromisoformat(clear[i]["date"])).days <= MAX_DAYS_AHEAD]
+    return fits[-1] if fits else None
+
+
 def weather_summary(weather, first_day, days):
     window = [weather.get((first_day + timedelta(days=k)).isoformat()) for k in range(days)]
     if any(w is None or None in w for w in window):
@@ -337,17 +386,23 @@ def weather_check(geometry, exclusions, as_of):
                 "message": f"Insufficient evidence: fewer than 2 clear satellite images in the "
                            f"{LOOKBACK_DAYS} days before {as_of} (clouds or early season)."}
 
-    latest, previous = clear[-1], clear[-2]
-    latest_day, previous_day = date.fromisoformat(latest["date"]), date.fromisoformat(previous["date"])
+    latest = clear[-1]
+    latest_day = date.fromisoformat(latest["date"])
+    start_index = start_for_check(bundle, clear)
     result = {**base, "status": "ok", "last_image_date": latest["date"],
-              "previous_image_date": previous["date"], "actual_ndvi": latest["ndvi_mean"],
+              "previous_image_date": clear[start_index]["date"] if start_index is not None else None,
+              "actual_ndvi": latest["ndvi_mean"],
               "latest_clear_fraction": latest["clear_fraction"],
               "weather_last_14_days": weather_summary(weather, latest_day - timedelta(days=14), 14)}
 
     # 1. Does the weather explain the latest image?
-    inputs = model_inputs(previous["ndvi_mean"], previous_day, latest_day, weather)
+    inputs = inputs_from(bundle, clear, start_index, latest_day, weather) if start_index is not None else None
     unusual = outside_training(bundle, inputs) if inputs else None
-    if inputs is None:
+    if start_index is None:
+        result["check"] = {"status": "insufficient_evidence",
+                           "message": f"Not checked: no clear image {MIN_DAYS_AHEAD}-{MAX_DAYS_AHEAD} days before "
+                                      "the latest one (the AI predicts that far ahead)."}
+    elif inputs is None:
         result["check"] = {"status": "insufficient_evidence", "message": "Weather data is missing for this period."}
     elif unusual:
         result["check"] = {"status": "outside_training", "outside": unusual,
@@ -366,7 +421,7 @@ def weather_check(geometry, exclusions, as_of):
 
     # 2. Next-week risk
     target = as_of + timedelta(days=DAYS_AHEAD)
-    inputs = model_inputs(latest["ndvi_mean"], latest_day, target, weather)
+    inputs = inputs_from(bundle, clear, len(clear) - 1, target, weather)
     unusual = outside_training(bundle, inputs) if inputs else None
     risk = {"target_date": target.isoformat(),
             "weather_next_7_days": weather_summary(weather, as_of + timedelta(days=1), DAYS_AHEAD)}
@@ -463,10 +518,16 @@ def rank_my_fields(saved, as_of, check=weather_check):
 # line fitted to the real April-October weather of the 25 training fields (2019-2025).
 
 WHAT_IF_LABEL = "Scenario estimate from the AI model, not a forecast."
-PATTERN_NOTE = ("The AI learned patterns from past fields, not causes. For example, cool weather "
-                "in the training data usually meant autumn, when grass fades, so a cool scenario "
-                "can show a drop. Most training fields are watered, so rain and heat change the "
-                "estimate only a little.")
+# Version 3 (2026-11-07): weather is compared with the normal for the time of year, so a
+# scenario much cooler or hotter than any 2019-2025 spell gets NO number. Real behavior seen in
+# the re-test: more dry days -> a somewhat bigger drop; a spell about 6 °C cooler than normal
+# shows a bigger drop, learned from only ~5 cool spells (198 training rows, e.g. April 2021,
+# June 2023) whose fields did fade. That is a pattern, not proof that cool weather harms grass.
+PATTERN_NOTE = ("The AI learned patterns from past fields, not causes. Weather is compared with "
+                "what is normal for that time of year; scenarios far outside past weather get no "
+                "number. A spell about 6 °C cooler than normal shows a drop because the few cool "
+                "spells in 2019-2025 came with fading grass, which may not be the cause. Most "
+                "training fields are watered, so rain and heat change the estimate only a little.")
 _et0_fit = None
 
 
@@ -534,7 +595,7 @@ def what_if(geometry, exclusions, as_of, scenario):
     latest_day = date.fromisoformat(latest["date"])
     target = latest_day + timedelta(days=WHAT_IF_DAYS)
     weather = scenario_weather(snap["weather"], latest_day, scenario)
-    inputs = model_inputs(latest["ndvi_mean"], latest_day, target, weather)
+    inputs = inputs_from(bundle, snap["clear"], len(snap["clear"]) - 1, target, weather)
     result = {**base, "last_image_date": latest["date"], "start_ndvi": latest["ndvi_mean"],
               "target_date": target.isoformat(), "geometry_note": snap["geometry_note"]}
     if inputs is None:

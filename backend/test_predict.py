@@ -220,4 +220,54 @@ check("31. what-if for My Fields without logging in -> 401", response.status_cod
 response = client.post("/api/ai/what-if", json={"dry_days": 14, "rain_mm": 5, "avg_high_c": 30})
 check("32. what-if endpoint refuses 14 dry days + rain (400)", response.status_code == 400)
 
+# ---- Version 3 model (2026-11-07): 7-20 days ahead, more inputs ----
+from build_dataset_v3 import ALL_FEATURES  # noqa: E402
+
+
+class FakeModelV3:
+    """Predicts start NDVI + `change` (v3 models get every ALL_FEATURES column)."""
+    change = 0.0
+
+    def predict(self, X):
+        return X[:, ALL_FEATURES.index("start_ndvi")] + self.change
+
+
+fake_v3 = FakeModelV3()
+wide_v3 = {name: [-1e9, 1e9] for name in ALL_FEATURES}
+v3_bundle = {"version": 3, "model": fake_v3, "features": ALL_FEATURES,
+             "used_features": [f for f in ALL_FEATURES if not f.startswith("own_")],
+             "typical_error": 0.06, "weather_cutoff": 0.12, "feature_ranges": wide_v3,
+             "weather_normal": {d: (1.0, 25.0, 4.0) for d in range(1, 367)}}
+predict.load_model = lambda: v3_bundle
+ndvi_rows[:] = [{"date": "2025-07-01", "ndvi_mean": 0.80, "ndvi_std": 0.05, "clear_fraction": 1.0},
+                {"date": "2025-07-08", "ndvi_mean": 0.78, "ndvi_std": 0.05, "clear_fraction": 1.0},
+                {"date": "2025-07-15", "ndvi_mean": 0.76, "ndvi_std": 0.05, "clear_fraction": 1.0},
+                {"date": "2025-07-20", "ndvi_mean": 0.60, "ndvi_std": 0.05, "clear_fraction": 1.0}]
+r = predict.weather_check(field, [], date(2025, 7, 25))
+check("33. v3: the latest image is checked against the newest image 7-20 days earlier (not 5 days)",
+      r["previous_image_date"] == "2025-07-08" and r["check"]["expected_ndvi"] == 0.78
+      and r["check"]["weather_explains"] is False)
+check("34. v3: next-week risk and cutoff use the version 3 model's own error",
+      r["risk_next_week"]["level"] == "Low" and r["cutoff"] == 0.12)
+ndvi_rows[:] = [{"date": "2025-07-15", "ndvi_mean": 0.76, "ndvi_std": 0.05, "clear_fraction": 1.0},
+                {"date": "2025-07-20", "ndvi_mean": 0.60, "ndvi_std": 0.05, "clear_fraction": 1.0}]
+r = predict.weather_check(field, [], date(2025, 7, 25))
+check("35. v3: no image 7-20 days before the latest -> not checked, no expected number",
+      r["check"]["status"] == "insufficient_evidence" and "expected_ndvi" not in r["check"])
+ndvi_rows[:] = [{"date": "2025-07-20", "ndvi_mean": 0.70, "ndvi_std": 0.05, "clear_fraction": 1.0}]
+fake_v3.change = -0.07
+r = predict.what_if(field, [], date(2025, 7, 25), scenario)
+check("36. v3 what-if: one recent image (no trend) is allowed; Medium risk from the v3 error",
+      r["status"] == "ok" and r["predicted_change"] == -0.07 and r["risk_level"] == "Medium")
+ndvi_rows[:] = [{"date": "2025-07-20", "ndvi_mean": 0.70, "clear_fraction": 1.0}]  # no pixel spread
+r = predict.what_if(field, [], date(2025, 7, 25), scenario)
+check("37. v3: a missing input the model always had (image quality) -> no number",
+      r["status"] == "outside_training" and "image quality" in r["message"])
+predict.load_model = lambda: fake_bundle
+
+real_v3 = predict.joblib.load(predict.MODEL_V3_FILE)
+check("38. the saved version 3 model loads in the backend and uses no earlier-year inputs",
+      real_v3["version"] == 3 and not any(f.startswith("own_") for f in real_v3["used_features"])
+      and 0 < real_v3["typical_error"] < 0.2)
+
 print(f"\nAll {passed} predict tests passed.")
