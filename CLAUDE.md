@@ -290,8 +290,19 @@ Progress:
       image 8+ days old (662 rows) → model reliably 13% better (0.0088, 95% +0.0019..+0.0145);
       2025 8+ days (102 rows) +4%, inconclusive. Weather inputs have tiny importance (fields are
       watered). STOPPED after Step 5 to let the student decide how to proceed (2026-11-01).
-- [ ] Steps 6–7 — NOT built (no /api/ai/weather-check endpoint, no AI Weather Check panel).
-      The weather-check ENGINE exists in backend/predict.py (built for Step 8).
+- [x] Steps 6–7 — built 2026-11-07 (student chose this when asking for the cloudy-day estimate).
+      POST /api/ai/weather-check {geometry, exclude, as_of} (no login; same validation as analyze)
+      -> predict.weather_check + new keys: cloudy_estimate, recent_images, expected_series,
+      risk_next_week.normal_next_7_days (Denver 2019-2024 normal). No "top_factors": weather inputs
+      have tiny importance, so naming causes would overclaim. Frontend AIWeatherCheck.jsx BELOW
+      <Results> (runs once after each analysis, as of min(end date, today); "Check as of" + "Check
+      again"); SVG chart: clear-image dots, dashed AI-expected line, hollow estimate ± error.
+      CLOUDY-DAY ESTIMATE: newest clear image >= 7 days (CLOUDY_DAYS) before as_of -> v3 model NDVI
+      for as_of, "AI estimate, not a measurement", last clear date, ± typical error (0.06). Also
+      added beside the insufficient-evidence result (message text unchanged). >20 days -> no number.
+      v3 only. Real check, Village Greens 2026 (3.1 PU): May 1 est 0.398 vs next clear (May 2) 0.456;
+      May 29 est 0.605 vs May 30 0.682 (off by 0.077, more than ±0.06 -> UI says ± is an AVERAGE
+      error). Tests 46-58 (58/58). Panel NOT yet clicked through in a browser.
 - [x] Step 8 — My Fields ranking (2026-11-02, student asked for Steps 8+9). backend/predict.py:
       weather_check(geometry, exclusions, as_of) = Statistical API last 60 days (same evalscript,
       80% clear; exclusions become holes if valid, else not used + note) + Open-Meteo (archive up

@@ -13,6 +13,7 @@ import Results from './Results.jsx';
 import AccountPanel from './AccountPanel.jsx';
 import MyFields from './MyFields.jsx';
 import WhatIf from './WhatIf.jsx';
+import AIWeatherCheck from './AIWeatherCheck.jsx';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
@@ -326,6 +327,14 @@ export default function App() {
               </p>
             )}
             {result && <Results result={result} layer={layer} onLayerChange={setLayer} />}
+            {result && polygon && (
+              <AIWeatherCheck
+                key={JSON.stringify([polygon.geojson, exclusions.map((shape) => shape.geojson), end])}
+                geometry={polygon.geojson}
+                exclude={exclusions.map((shape) => shape.geojson)}
+                defaultAsOf={end}
+              />
+            )}
           </section>
 
           <section>

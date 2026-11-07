@@ -384,7 +384,8 @@ def weather_check(geometry, exclusions, as_of):
     if len(clear) < 2:
         return {**base, "status": "insufficient_evidence",
                 "message": f"Insufficient evidence: fewer than 2 clear satellite images in the "
-                           f"{LOOKBACK_DAYS} days before {as_of} (clouds or early season)."}
+                           f"{LOOKBACK_DAYS} days before {as_of} (clouds or early season).",
+                "cloudy_estimate": cloudy_estimate(bundle, clear, weather, as_of)}
 
     latest = clear[-1]
     latest_day = date.fromisoformat(latest["date"])
@@ -440,8 +441,74 @@ def weather_check(geometry, exclusions, as_of):
         change = predicted - latest["ndvi_mean"]
         risk.update(level=risk_level(change, bundle), predicted_ndvi=round(predicted, 3),
                     predicted_change=round(change, 3))
+    risk["normal_next_7_days"] = normal_summary(bundle, as_of + timedelta(days=1), DAYS_AHEAD)
     result["risk_next_week"] = risk
+    result["cloudy_estimate"] = cloudy_estimate(bundle, clear, weather, as_of)
+    result["recent_images"] = [{"date": r["date"], "ndvi": r["ndvi_mean"]} for r in clear]
+    result["expected_series"] = expected_series(bundle, clear, weather)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Steps 6-7 extras (2026-11-07): cloudy-day estimate, chart data, weather vs normal
+# ---------------------------------------------------------------------------
+
+CLOUDY_DAYS = 7  # no clear image for this many days -> show the AI estimate (project choice)
+CLOUDY_LABEL = "AI estimate, not a measurement"
+
+
+def cloudy_estimate(bundle, clear, weather, as_of):
+    """When the newest clear image is CLOUDY_DAYS or more before "as of" (clouds), the version 3
+    model's estimated NDVI for "as of", with its typical error. None when not needed (a recent
+    clear image exists), when there is no clear image at all, or with an older model.
+    It is NOT a measurement: it is the model's guess from the last clear image + real weather."""
+    if not clear or not is_v3(bundle):
+        return None
+    latest = clear[-1]
+    days = (as_of - date.fromisoformat(latest["date"])).days
+    if days < CLOUDY_DAYS:
+        return None
+    out = {"label": CLOUDY_LABEL, "estimate_date": as_of.isoformat(), "last_clear_date": latest["date"],
+           "last_clear_ndvi": latest["ndvi_mean"], "days_without_clear_image": days,
+           "typical_error": round(bundle["typical_error"], 2)}
+    inputs = inputs_from(bundle, clear, len(clear) - 1, as_of, weather)
+    if inputs is None:
+        return {**out, "status": "insufficient_evidence",
+                "message": "No AI estimate: weather data is missing for this period."}
+    unusual = outside_training(bundle, inputs)
+    if unusual:
+        return {**out, "status": "outside_training", "outside": unusual,
+                "message": f"No AI estimate: outside what the AI saw in training ({readable(unusual)}). "
+                           f"It only predicts {MIN_DAYS_AHEAD}-{MAX_DAYS_AHEAD} days after a clear image."}
+    return {**out, "status": "ok", "estimated_ndvi": round(predict_one(bundle, inputs), 3)}
+
+
+def expected_series(bundle, clear, weather):
+    """For the chart: what the model expected for each clear image, predicted from the newest
+    clear image 7-20 days before it (version 3 only). Images with no such start are skipped."""
+    if not is_v3(bundle):
+        return []
+    series = []
+    for j in range(1, len(clear)):
+        start_index = start_for_check(bundle, clear[: j + 1])
+        if start_index is None:
+            continue
+        inputs = inputs_from(bundle, clear, start_index, date.fromisoformat(clear[j]["date"]), weather)
+        if inputs is None or outside_training(bundle, inputs):
+            continue
+        series.append({"date": clear[j]["date"], "expected_ndvi": round(predict_one(bundle, inputs), 3)})
+    return series
+
+
+def normal_summary(bundle, first_day, days):
+    """The Denver-area NORMAL rain and high temperature for the same days (2019-2024 average,
+    stored with the version 3 model), to compare with the forecast. None with older models."""
+    normal = bundle.get("weather_normal")
+    if not normal:
+        return None
+    window = [normal[(first_day + timedelta(days=k)).timetuple().tm_yday] for k in range(days)]
+    return {"days": days, "rain_mm": round(sum(w[0] for w in window), 1),
+            "avg_high_c": round(sum(w[1] for w in window) / days, 1)}
 
 
 # ---------------------------------------------------------------------------

@@ -297,4 +297,60 @@ response = client.get("/api/ai/what-if/limits")
 check("45. limits endpoint without as_of still works as before", response.status_code == 200
       and "month" not in response.json() and response.json()["dry_days"] == [0, 14])
 
+# ---- Steps 6-7: AI Weather Check endpoint + cloudy-day estimate (2026-11-07) ----
+predict.load_model = lambda: v3_bundle
+fake_v3.change = -0.03
+ndvi_rows[:] = [{"date": "2025-07-01", "ndvi_mean": 0.80, "ndvi_std": 0.05, "clear_fraction": 1.0},
+                {"date": "2025-07-10", "ndvi_mean": 0.78, "ndvi_std": 0.05, "clear_fraction": 1.0}]
+r = predict.weather_check(field, [], date(2025, 7, 19))  # last clear image 9 days ago
+est = r["cloudy_estimate"]
+check("46. no clear image for 7+ days -> AI estimate labeled 'AI estimate, not a measurement'",
+      est["label"] == "AI estimate, not a measurement" and est["status"] == "ok"
+      and est["estimated_ndvi"] == 0.75 and est["estimate_date"] == "2025-07-19")
+check("47. the estimate shows the last clear image date and the typical error (±0.06)",
+      est["last_clear_date"] == "2025-07-10" and est["days_without_clear_image"] == 9
+      and est["typical_error"] == 0.06)
+check("48. the measured values stay separate from the estimate (actual = last clear image)",
+      r["actual_ndvi"] == 0.78 and r["last_image_date"] == "2025-07-10")
+r = predict.weather_check(field, [], date(2025, 7, 15))  # 5 days: not cloudy enough
+check("49. a clear image less than 7 days old -> no estimate", r["cloudy_estimate"] is None)
+v3_bundle["feature_ranges"] = {**wide_v3, "days_ahead": [7, 20]}  # as in the real version 3 model
+r = predict.weather_check(field, [], date(2025, 7, 31))  # 21 days: beyond what the model learned
+check("50. last clear image more than 20 days ago -> no AI number, explained",
+      r["cloudy_estimate"]["status"] == "outside_training" and "estimated_ndvi" not in r["cloudy_estimate"])
+v3_bundle["feature_ranges"] = wide_v3
+ndvi_rows[:] = [{"date": "2025-07-10", "ndvi_mean": 0.78, "ndvi_std": 0.05, "clear_fraction": 1.0}]
+r = predict.weather_check(field, [], date(2025, 7, 19))
+check("51. insufficient evidence: the message is unchanged; the estimate is only added beside it",
+      r["status"] == "insufficient_evidence"
+      and r["message"] == ("Insufficient evidence: fewer than 2 clear satellite images in the "
+                           f"{predict.LOOKBACK_DAYS} days before 2025-07-19 (clouds or early season).")
+      and r["cloudy_estimate"]["estimated_ndvi"] == 0.75 and "actual_ndvi" not in r)
+ndvi_rows[:] = []
+r = predict.weather_check(field, [], date(2025, 7, 19))
+check("52. no clear image at all -> no estimate (nothing to start from)",
+      r["status"] == "insufficient_evidence" and r["cloudy_estimate"] is None)
+ndvi_rows[:] = [{"date": d, "ndvi_mean": 0.70, "ndvi_std": 0.05, "clear_fraction": 1.0}
+                for d in ("2025-06-20", "2025-06-30", "2025-07-08")]
+r = predict.weather_check(field, [], date(2025, 7, 20))
+check("53. chart data: every clear image + the AI's expected value from an image 7-20 days earlier",
+      [p["date"] for p in r["recent_images"]] == ["2025-06-20", "2025-06-30", "2025-07-08"]
+      and [p["date"] for p in r["expected_series"]] == ["2025-06-30", "2025-07-08"]
+      and r["expected_series"][0]["expected_ndvi"] == 0.67)
+check("54. next week's forecast is shown next to the normal weather for those days",
+      r["risk_next_week"]["normal_next_7_days"] == {"days": 7, "rain_mm": 7.0, "avg_high_c": 25.0})
+predict.load_model = lambda: fake_bundle
+r = predict.weather_check(field, [], date(2025, 7, 20))
+check("55. older (version 2) model -> no cloudy estimate", r["cloudy_estimate"] is None)
+response = client.post("/api/ai/weather-check", json={"geometry": field, "as_of": "2025-07-20"})
+check("56. POST /api/ai/weather-check works without logging in", response.status_code == 200
+      and response.json()["status"] == "ok")
+response = client.post("/api/ai/weather-check", json={"geometry": field, "as_of": "2025-12-01"})
+check("57. weather-check endpoint off-season -> 'Off-season' message",
+      response.status_code == 200 and response.json()["message"] == predict.OFF_SEASON)
+bad = {"type": "Polygon", "coordinates": [[[-104.88, 39.63], [-104.879, 39.63], [-104.88, 39.63]]]}
+response = client.post("/api/ai/weather-check", json={"geometry": bad})
+check("58. weather-check endpoint rejects a broken outline (400), like /api/analyze",
+      response.status_code == 400)
+
 print(f"\nAll {passed} predict tests passed.")

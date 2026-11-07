@@ -375,3 +375,29 @@ def what_if(body: WhatIfRequest, user=Depends(current_user), db=Depends(get_db))
         return answer
     except predict.PredictError as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# Stage 10 Steps 6-7 (2026-11-07): AI Weather Check for the field on the map.
+class WeatherCheckRequest(BaseModel):
+    geometry: dict = Field(..., description="The field outline (GeoJSON Polygon), same as /api/analyze")
+    exclude: list[dict] = Field(default_factory=list, description="Excluded areas (become holes)")
+    as_of: date = Field(default_factory=date.today, description="Check the field as of this day")
+
+
+@app.post("/api/ai/weather-check")
+def weather_check(body: WeatherCheckRequest):
+    """Expected vs actual NDVI for the latest clear image, next-week risk, and (when there has
+    been no clear image for 7+ days) the AI's cloudy-day estimate. Uses no account data."""
+    check_as_of(body.as_of)
+    geometry = clean_polygon(body.geometry)
+    if len(body.exclude) > MAX_EXCLUDED_AREAS:
+        raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
+    exclusions = [clean_polygon(shape) for shape in body.exclude]
+    try:
+        sentinel.check_box(*sentinel.geometry_bbox(geometry))
+    except sentinel.SentinelError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        return predict.weather_check(geometry, exclusions, body.as_of)
+    except predict.PredictError as e:
+        raise HTTPException(status_code=502, detail=str(e))

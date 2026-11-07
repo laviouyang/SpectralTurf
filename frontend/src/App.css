@@ -401,3 +401,24 @@ pre {
   font-size: 0.85em;
   color: #555;
 }
+
+/* Stage 10 Steps 6-7: AI Weather Check panel (below the results) */
+.ai-weather-check {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid #ddd;
+}
+.cloudy-estimate {
+  border-style: dashed;
+}
+.ai-chart svg {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+}
+.ai-chart .axis { stroke: #999; }
+.ai-chart .tick { font-size: 9px; fill: #666; }
+.ai-chart .actual { fill: #1f5e3b; }
+.ai-chart .expected { fill: none; stroke: #777; stroke-dasharray: 4 3; stroke-width: 1.5; }
+.ai-chart .estimate line { stroke: #c46a00; stroke-width: 1.5; }
+.ai-chart .estimate circle { fill: #fff; stroke: #c46a00; stroke-width: 2; }

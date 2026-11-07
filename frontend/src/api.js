@@ -130,3 +130,8 @@ export function getWhatIfLimits(asOf) {
 export function runWhatIf(body) {
   return request('/api/ai/what-if', { method: 'POST', body });
 }
+
+// Stage 10 Steps 6-7: AI Weather Check for the field on the map (incl. cloudy-day estimate).
+export function weatherCheck(geometry, exclude, asOf) {
+  return request('/api/ai/weather-check', { method: 'POST', body: { geometry, exclude, as_of: asOf } });
+}
