@@ -353,6 +353,23 @@ Progress:
       (also capped by training range). GET /api/ai/what-if/limits?as_of= adds month + month_note +
       heat_note; what_if refuses others (no download). WhatIf.jsx reloads limits when the date
       changes, clamps the slider, shows "allowed X–Y °C in <Month>" + HEAT_NOTE. Tests 39-45 (45/45).
+- [x] Step 10 — "Ask SpectralTurf" (2026-11-15, student request; LLM = Google Gemini).
+      backend/check_keys.py: checks CDSE login + Gemini "Say hello." (never prints keys).
+      gemini-2.5-flash is CLOSED to new users -> default gemini-3.5-flash (GEMINI_MODEL in .env
+      overrides; 3.8-flash/flash-latest often HTTP 503 "high demand"). thinkingLevel "low"
+      (a default-thinking step took >90 s; low = ~13 s per question).
+      backend/assistant.py: REST function calling (key in x-goog-api-key header). Read-only tools:
+      get_my_fields, get_latest_analysis, get_expected_vs_observed, get_ranking, get_field_history.
+      Fields = "screen" or "field-1.." (distinct saved outlines, from accounts.list_analyses of
+      THIS user only); visitors: only "screen". Gemini never gets usernames, field names (legend
+      shown in browser only) or coordinates. Code checks every answer: all numbers/dates must be
+      in tool results (rounding / % allowed), no watering amounts/schedules, no cause claims ->
+      one retry, else "blocked". Limits: 500 chars, 5/min per user (or IP), 300/day server,
+      6 tool rounds. Each question answered on its own (no chat memory). POST /api/ai/ask
+      (503 friendly message on key/Gemini problems). Frontend AskSpectralTurf.jsx = sidebar
+      "7. Ask SpectralTurf — AI assistant". Tests backend/test_assistant.py (fake Gemini, 39/39).
+      Real Gemini check (visitor, Village Greens turf, as of 2026-08-15): presets answered with
+      numbers matching the tools; watering/disease question refused. Not yet clicked in a browser.
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.
