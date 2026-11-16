@@ -14,6 +14,7 @@ import AccountPanel from './AccountPanel.jsx';
 import MyFields from './MyFields.jsx';
 import WhatIf from './WhatIf.jsx';
 import AIWeatherCheck from './AIWeatherCheck.jsx';
+import AskSpectralTurf from './AskSpectralTurf.jsx';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
@@ -347,6 +348,18 @@ export default function App() {
             <WhatIf
               geometry={check?.ok && !editing ? polygon.geojson : null}
               exclude={exclusions.map((shape) => shape.geojson)}
+              user={user}
+            />
+          </section>
+
+          <section>
+            <h2>7. Ask SpectralTurf — AI assistant</h2>
+            <AskSpectralTurf
+              geometry={check?.ok && !editing ? polygon.geojson : null}
+              exclude={exclusions.map((shape) => shape.geojson)}
+              start={result ? start : null}
+              end={result ? end : null}
+              asOf={end && end < new Date().toLocaleDateString('en-CA') ? end : new Date().toLocaleDateString('en-CA')}
               user={user}
             />
           </section>

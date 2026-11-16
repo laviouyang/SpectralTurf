@@ -422,3 +422,44 @@ pre {
 .ai-chart .expected { fill: none; stroke: #777; stroke-dasharray: 4 3; stroke-width: 1.5; }
 .ai-chart .estimate line { stroke: #c46a00; stroke-width: 1.5; }
 .ai-chart .estimate circle { fill: #fff; stroke: #c46a00; stroke-width: 2; }
+
+/* Stage 10 Step 10: Ask SpectralTurf chat panel */
+.ask-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.ask-presets button {
+  font-size: 0.85rem;
+}
+.ask-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  resize: vertical;
+}
+.ask-send {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 0 8px;
+}
+.ask-chat {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ask-chat > li {
+  margin-bottom: 10px;
+}
+.ask-question {
+  margin: 4px 0;
+}
+.ask-answer p,
+.ask-answer ul {
+  margin: 4px 0;
+}
+.ask-answer ul {
+  padding-left: 18px;
+}

@@ -135,3 +135,9 @@ export function runWhatIf(body) {
 export function weatherCheck(geometry, exclude, asOf) {
   return request('/api/ai/weather-check', { method: 'POST', body: { geometry, exclude, as_of: asOf } });
 }
+
+// Stage 10 Step 10: "Ask SpectralTurf" assistant. Only the question + the field on screen are
+// sent to OUR backend; the backend talks to Gemini (the Gemini key never comes to the browser).
+export function askSpectralTurf(body) {
+  return request('/api/ai/ask', { method: 'POST', body });
+}
