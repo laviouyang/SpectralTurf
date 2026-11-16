@@ -10,6 +10,8 @@ Endpoints:
   GET  /api/history, DELETE /api/history/{id} -> a logged-in user's saved analyses
   POST /api/ai/my-fields      -> Stage 10 Step 8: the user's saved fields ranked by the AI check
   GET  /api/ai/what-if/limits, POST /api/ai/what-if -> Step 9: "What if?" weather scenarios
+  POST /api/ai/weather-check  -> Steps 6-7: AI Weather Check for the field on the map
+  POST /api/ai/ask            -> Step 10: "Ask SpectralTurf" AI assistant (Gemini + read-only tools)
 
 Run it with:   uvicorn main:app --reload
 Then open:     http://localhost:8000/docs
@@ -20,12 +22,13 @@ import os
 from datetime import date
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 import accounts
+import assistant
 import indices
 import predict
 import render
@@ -401,3 +404,58 @@ def weather_check(body: WeatherCheckRequest):
         return predict.weather_check(geometry, exclusions, body.as_of)
     except predict.PredictError as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# Stage 10 Step 10 (2026-11-15): "Ask SpectralTurf" AI assistant (backend/assistant.py).
+class AskRequest(BaseModel):
+    question: str = Field(..., max_length=5000, description="The user's question")
+    geometry: dict | None = Field(None, description="The field on screen (GeoJSON Polygon), optional")
+    exclude: list[dict] = Field(default_factory=list)
+    start: date | None = Field(None, description="Date range of the analysis on screen")
+    end: date | None = None
+    max_cloud: int = Field(30, ge=0, le=100)
+    as_of: date = Field(default_factory=date.today)
+
+
+@app.post("/api/ai/ask")
+def ask(body: AskRequest, request: Request, user=Depends(current_user), db=Depends(get_db)):
+    """Answer a question with Gemini + read-only tools. Logged in: the user's OWN saved fields
+    (read only) + the field on screen. Visitor: only the field on screen. Gemini never gets the
+    username or the field names. Problems give a friendly 503; the rest of the app is unaffected."""
+    question = body.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Please type a question.")
+    if len(question) > assistant.MAX_QUESTION_CHARS:
+        raise HTTPException(status_code=400,
+                            detail=f"Questions can be at most {assistant.MAX_QUESTION_CHARS} characters.")
+    check_as_of(body.as_of)
+    screen, analyze_screen = None, None
+    if body.geometry is not None:
+        geometry = clean_polygon(body.geometry)
+        if len(body.exclude) > MAX_EXCLUDED_AREAS:
+            raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
+        exclusions = [clean_polygon(shape) for shape in body.exclude]
+        try:
+            sentinel.check_box(*sentinel.geometry_bbox(geometry))
+        except sentinel.SentinelError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        screen = {"geometry": geometry, "exclusions": exclusions, "start": body.start, "end": body.end,
+                  "max_cloud": body.max_cloud}
+        if body.start and body.end:
+            def analyze_screen():
+                try:  # the same analysis as the Analyze button (real data, nothing saved)
+                    return run_analysis(geometry, body.start, body.end, body.max_cloud, exclusions)
+                except HTTPException as e:
+                    raise assistant.ToolDataError(f"The analysis failed: {e.detail}")
+
+    who = f"user:{user['id']}" if user else f"ip:{request.client.host if request.client else 'unknown'}"
+    try:
+        assistant.limiter.check(who)
+    except assistant.AssistantError as e:
+        raise HTTPException(status_code=429, detail=str(e))
+    saved = accounts.list_analyses(db, user["id"]) if user else []  # only this user's rows (read only)
+    ctx = assistant.Context(user is not None, saved, screen, analyze_screen, body.as_of)
+    try:
+        return assistant.ask(question, ctx)
+    except assistant.AssistantError as e:
+        raise HTTPException(status_code=503, detail=str(e))
