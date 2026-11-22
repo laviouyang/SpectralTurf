@@ -31,6 +31,7 @@ units (PU) are counted per day and requests stop at DAILY_PU_BUDGET.
 import hashlib
 import json
 import math
+import os
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -56,7 +57,9 @@ MODEL_FILE = ML_DIR / "model" / "ndvi_model.joblib"
 # Version 3 (2026-11-07, ml/results_v3.md): used when present, else version 2 above.
 MODEL_V3_FILE = ML_DIR / "model" / "ndvi_model_v3.joblib"
 WEATHER_HISTORY_DIR = ML_DIR / "data" / "weather"
-CACHE_DIR = BACKEND_DIR / "ai_cache"
+# AI_CACHE_DIR (added 2026-11-22 for Render): keep the cache and the daily Copernicus budget
+# count on the persistent disk so a restart doesn't reset them. Not set -> same folder as before.
+CACHE_DIR = Path(os.getenv("AI_CACHE_DIR") or BACKEND_DIR / "ai_cache")
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"

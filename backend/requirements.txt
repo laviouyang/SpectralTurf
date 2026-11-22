@@ -5,3 +5,7 @@ python-dotenv>=1.0
 numpy>=1.26
 tifffile>=2024.1
 pillow>=11.0
+# Added 2026-11-22: the AI model (ml/model/*.joblib) needs these. scikit-learn is pinned to
+# the version the model was saved with, so a fresh install (e.g. on Render) can load it.
+joblib>=1.4
+scikit-learn==1.9.1

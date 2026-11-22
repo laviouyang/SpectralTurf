@@ -30,7 +30,10 @@ import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spectralturf.db")
+# DATABASE_PATH (added 2026-11-22 for Render, where the file lives on a persistent disk,
+# e.g. /var/data/spectralturf.db). Not set -> the same local file as before.
+DB_PATH = os.getenv("DATABASE_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                      "spectralturf.db")
 
 # Project choices (not standards):
 SESSION_DAYS = 30

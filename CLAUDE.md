@@ -382,6 +382,19 @@ Progress:
       answer with Read aloud. Live photo test (synthetic photo via API): described a brown patch,
       refused to name a disease. Photo picker + microphone NOT clicked in a browser (need a person).
       NOTE: if the backend isn't running, the Vite proxy makes every request show "HTTP 500".
+- RENDER DEPLOY PREP (2026-11-22, student request; NOT deployed - student does it via
+      docs/DEPLOY_RENDER.md). render.yaml: backend python web service (rootDir backend, paid plan
+      for the 1 GB disk at /var/data, PYTHON_VERSION 3.13.14, secrets sync:false) + static site
+      (rootDir frontend, dist, rewrite /api/* -> https://spectralturf-backend.onrender.com/api/*,
+      /* -> /index.html). Env: DATABASE_PATH (accounts.py), AI_CACHE_DIR (predict.py); unset =
+      old local paths. requirements.txt was MISSING joblib + scikit-learn (added; sklearn pinned
+      1.9.1 = model pickle). backend/limits.py + middleware at end of main.py: login lockout
+      (5 wrong/username or 20/address per 15 min), daily caps user/visitor/total: analyses
+      30/10/300, AI checks 200/100/2000, chat 40/15/300, signups -/5/100 (LIMIT_* env); counts
+      in usage_limits.db next to the accounts DB. ON only if RENDER set or USAGE_LIMITS=on (local
+      unchanged). Tests backend/test_limits.py 23/23. Frontend already used relative /api.
+      Unverified on Render: staticPublishPath relative to rootDir, rewrite of POST/large photo
+      bodies, Python 3.13.14 availability.
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.

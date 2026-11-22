@@ -138,6 +138,11 @@ wrong passwords are refused, and one user can't see or delete another user's sav
 The phone talks only to the website; Vite passes `/api/...` to the backend, which stays
 reachable from this computer only.
 
+### Putting it online (Render)
+
+Step-by-step guide: [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md) (uses `render.yaml`).
+When deployed, login lockout and daily limits switch on (`backend/limits.py`).
+
 ### Sharing a link (temporary, from your own computer)
 
 To let a few people open the app without hosting it anywhere, use a free Cloudflare

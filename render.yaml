@@ -1,0 +1,64 @@
+# render.yaml - Render "Blueprint" for SpectralTurf AI (added 2026-11-22).
+# Step-by-step instructions: docs/DEPLOY_RENDER.md
+#
+# Two services:
+#   1. spectralturf-backend  - the Python FastAPI server, with a persistent disk for the
+#                              accounts database, the usage-limit counts and the AI cache.
+#   2. spectralturf-frontend - the React website (static files). Requests to /api/* are passed
+#                              on to the backend, so the website and API share one address.
+#
+# SECRETS ARE NEVER WRITTEN HERE. Entries with "sync: false" are filled in on Render's
+# website when the Blueprint is created.
+
+services:
+  - type: web
+    name: spectralturf-backend
+    runtime: python
+    rootDir: backend
+    # No "plan" line: Render then uses its smallest PAID instance. A persistent disk needs a
+    # paid plan (on the free plan, files - including accounts - are lost on every restart).
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    disk:
+      name: spectralturf-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.14           # the version the app and AI model were built and tested with
+      # --- secrets: fill these in on Render (never commit the values) ---
+      - key: CDSE_CLIENT_ID
+        sync: false
+      - key: CDSE_CLIENT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # --- settings (not secret) ---
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: DATABASE_PATH       # accounts + saved fields live on the disk
+        value: /var/data/spectralturf.db
+      - key: AI_CACHE_DIR        # AI download cache + daily Copernicus budget count
+        value: /var/data/ai_cache
+      - key: USAGE_LIMITS        # login lockout + daily limits (backend/limits.py)
+        value: "on"
+      - key: TRUST_PROXY_HEADERS # tell visitors apart by their real address behind Render's proxy
+        value: "1"
+
+  - type: web
+    name: spectralturf-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      # If Render gives the backend a different address (shown on its page, e.g.
+      # https://spectralturf-backend-abcd.onrender.com), change this line to match.
+      - type: rewrite
+        source: /api/*
+        destination: https://spectralturf-backend.onrender.com/api/*
+      # Every other address shows the website (it is a one-page app).
+      - type: rewrite
+        source: /*
+        destination: /index.html

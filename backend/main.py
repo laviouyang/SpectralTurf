@@ -13,7 +13,11 @@ Endpoints:
   POST /api/ai/weather-check  -> Steps 6-7: AI Weather Check for the field on the map
   POST /api/ai/ask            -> Step 10: "Ask SpectralTurf" AI assistant (Gemini + read-only tools)
 
+Public-website safety limits (login lockout, daily caps) are at the end of this file
+(backend/limits.py); they are only on when deployed (Render) or with USAGE_LIMITS=on.
+
 Run it with:   uvicorn main:app --reload
+On Render:     uvicorn main:app --host 0.0.0.0 --port $PORT   (see docs/DEPLOY_RENDER.md)
 Then open:     http://localhost:8000/docs
 """
 
@@ -467,3 +471,63 @@ def ask(body: AskRequest, request: Request, user=Depends(current_user), db=Depen
         return assistant.ask(question, ctx, photo=photo)
     except assistant.AssistantError as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Public-website safety limits (added 2026-11-22, backend/limits.py). Added on; nothing above
+# changed. Only active on Render or with USAGE_LIMITS=on, so running locally is unchanged.
+# Limits reached -> HTTP 429 with a friendly message (the website shows "detail" as-is).
+# ---------------------------------------------------------------------------
+
+from fastapi.responses import JSONResponse  # noqa: E402
+
+import limits  # noqa: E402
+
+
+def limits_user_id(request):
+    """The logged-in user's id (READ ONLY lookup of the session token), or None for a visitor."""
+    token = token_from(request.headers.get("authorization"))
+    if not token:
+        return None
+    db = accounts.connect()
+    try:
+        user = accounts.user_for_token(db, token)
+    finally:
+        db.close()
+    return user["id"] if user else None
+
+
+@app.middleware("http")
+async def usage_limits(request: Request, call_next):
+    if not limits.enabled() or request.method == "OPTIONS":
+        return await call_next(request)
+    path = request.url.path.rstrip("/")
+    address = limits.client_address(request)
+
+    if path == "/api/auth/login" and request.method == "POST":
+        username = limits.username_from(await request.body())
+        message = limits.login_lock_message(username, address)
+        if message:
+            return JSONResponse({"detail": message}, status_code=429)
+        response = await call_next(request)
+        if response.status_code == 401:
+            limits.login_failed(username, address)
+        elif response.status_code == 200:
+            limits.login_succeeded(username)
+        return response
+
+    kind = limits.KIND_OF_PATH.get(path)
+    if kind is None:
+        return await call_next(request)
+    user_id = None if kind == "signup" else limits_user_id(request)
+    who = f"user:{user_id}" if user_id else f"ip:{address}"
+    try:
+        limits.check(kind, who, logged_in=user_id is not None)
+    except limits.LimitReached as e:
+        return JSONResponse({"detail": str(e)}, status_code=429)
+    response = await call_next(request)
+    # Count it unless the request was turned down (bad input, not logged in, ...), since those
+    # never reach Copernicus or Gemini.
+    if response.status_code < 400 or response.status_code >= 500:
+        limits.record(kind, who)
+    return response
