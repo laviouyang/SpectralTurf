@@ -507,3 +507,24 @@ pre {
 .panel-body {
   padding: 0 10px 10px;
 }
+
+/* Ask SpectralTurf: photo + speech (ChatExtras.jsx) */
+.ask-send {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ask-send > span.muted {
+  margin-left: auto;
+}
+.chat-photo-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-photo-preview img,
+.ask-photo {
+  max-width: 120px;
+  max-height: 90px;
+  border-radius: 4px;
+  border: 1px solid #d8ded9;
+}

@@ -294,4 +294,55 @@ with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as folder:
         os.environ["GEMINI_API_KEY"] = saved_key
     db.close()
 
+# ---- 7. Photos (added 2026-11-22) ----
+import base64
+import io
+
+from PIL import Image
+
+big = Image.new("RGB", (3000, 2000), (60, 140, 50))
+exif = Image.Exif()
+exif[0x8825] = {1: "N", 2: (39.0, 38.0, 0.0)}  # a fake GPS location
+buffer = io.BytesIO()
+big.save(buffer, "JPEG", exif=exif.tobytes())
+photo_b64 = base64.b64encode(buffer.getvalue()).decode()
+cleaned = Image.open(io.BytesIO(base64.b64decode(assistant.clean_photo(photo_b64))))
+check("38. a photo is shrunk to 1024 px and its hidden GPS/EXIF data is removed",
+      max(cleaned.size) == 1024 and not cleaned.getexif())
+check("39. a 'data:image/jpeg;base64,' prefix is accepted",
+      assistant.clean_photo("data:image/jpeg;base64," + photo_b64))
+
+
+def photo_error(data):
+    try:
+        assistant.clean_photo(data)
+    except assistant.AssistantError as e:
+        return str(e)
+    return ""
+
+
+gif = io.BytesIO()
+Image.new("RGB", (10, 10)).save(gif, "GIF")
+check("40. not a picture -> friendly error", "could not be read" in photo_error(base64.b64encode(b"hello").decode()))
+check("41. other formats (GIF) are refused", "JPEG, PNG or WebP" in photo_error(base64.b64encode(gif.getvalue()).decode()))
+check("42. too-big files are refused",
+      "too big" in photo_error(base64.b64encode(b"x" * (assistant.MAX_PHOTO_BYTES + 1)).decode()))
+
+visitor = assistant.Context(False, [], None, None, AS_OF)
+fake = FakeGemini(text("The photo shows green grass. Check it in person."))
+reply = assistant.ask("What is in my photo?", visitor, call=fake, photo="QUJD")
+first = fake.sent[0][0]["parts"]
+check("43. the photo is sent to Gemini with the question, and the reply says a photo was used",
+      first[1] == {"inlineData": {"mimeType": "image/jpeg", "data": "QUJD"}} and reply["photo_used"]
+      and "attached a photo" in first[0]["text"])
+diagnosis = text("This looks like dollar spot.")
+check("44. naming a disease from a photo is blocked",
+      assistant.ask("What is it?", visitor, call=FakeGemini(diagnosis, diagnosis), photo="QUJD")["status"] == "blocked")
+check("45. saying it CAN'T identify diseases is fine",
+      assistant.ask("What is it?", visitor, photo="QUJD", call=FakeGemini(
+          text("I can't identify diseases from a photo. Check the brown area in person.")))["status"] == "ok")
+assistant.limiter = assistant.RateLimiter()
+r = TestClient(main.app).post("/api/ai/ask", json={"question": "Hi", "photo": base64.b64encode(b"nope").decode()})
+check("46. endpoint: a bad photo -> 400 with a friendly message", r.status_code == 400 and "photo" in r.json()["detail"])
+
 print(f"\nAll {passed} assistant tests passed.")

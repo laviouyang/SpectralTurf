@@ -20,11 +20,18 @@ Tools (all READ ONLY; a field is "screen" = the field drawn on the map, or "fiel
   get_ranking                      Step 8 My Fields ranking (logged-in users only)
   get_field_history(field)         saved analyses + clear satellite images of the last 60 days
 
+Photos (added 2026-11-22): the user may attach ONE photo of the field. The server re-saves it as
+a small JPEG (max 1024 px), which removes hidden data such as GPS location and camera details,
+sends it with the question, and never stores it. A photo is NOT a measurement: the AI may only
+describe what is plainly visible and must not name a disease, pest or cause from it.
+
 Privacy: Gemini only ever sees field DATA (numbers, dates, labels like "field-1").
 Never usernames, passwords, tokens, field names the user typed, or map coordinates.
 The Gemini key is read from backend/.env here and never sent to the browser or logged.
 """
 
+import base64
+import io
 import json
 import os
 import re
@@ -33,6 +40,7 @@ from collections import defaultdict, deque
 from datetime import date
 
 import requests
+from PIL import Image, ImageOps
 
 import indices
 import predict
@@ -46,6 +54,12 @@ MESSAGES_PER_MINUTE = 5      # per logged-in user (or per visitor's address)
 MESSAGES_PER_DAY = 300       # for the whole server (Gemini cost)
 MAX_TOOL_ROUNDS = 6          # stops a runaway agent loop
 GEMINI_TIMEOUT_S = 90
+
+# Photo limits (project choices)
+MAX_PHOTO_BYTES = 8 * 1024 * 1024      # uploaded file size
+MAX_PHOTO_PIXELS = 50_000_000          # refuses absurd "image bombs"
+PHOTO_SIDE = 1024                      # the photo Gemini sees is at most 1024 px wide/high
+PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
 
 UI_LABEL = "AI-generated explanation based on SpectralTurf data. Confirm in person."
 NOT_SET_UP = ("Ask SpectralTurf is not available right now: the server has no working Gemini key. "
@@ -79,7 +93,12 @@ Rules (always follow them):
 8. NDVI (greenness) uses 10 m pixels; NDMI (moisture) uses 20 m pixels, so never imply finer
    detail. Thresholds and rules in the app are project choices, not published standards.
 9. Keep answers short (about 150 words or less), in plain language for a non-expert.
-10. If the question is not about the user's fields or SpectralTurf, say you can only help with those."""
+10. If the question is not about the user's fields or SpectralTurf, say you can only help with those.
+11. If the user attaches a photo: it is their own photo, NOT a measurement, and you cannot know when
+   or where it was taken. Describe only what is plainly visible (green, yellow or brown areas, bare or
+   worn spots, standing water, lines) in plain words, and suggest where to look in person. Never name
+   a disease, pest or cause from a photo, never estimate NDVI or any other number from it, and do not
+   count things in it. Satellite numbers still come only from the tools."""
 
 
 class AssistantError(Exception):
@@ -450,6 +469,14 @@ CAUSE_RE = re.compile(
     r"|\b(has|have|is suffering from) (a )?(disease|fungus|fungal infection|grubs|pests|drought stress)\b",
     re.IGNORECASE)
 
+# "This looks like dollar spot" = a diagnosis. Saying you CAN'T identify diseases is fine.
+DISEASE_RE = re.compile(
+    r"\b(looks like|appears to be|is likely|is probably|probably|likely|could be|might be|may be|"
+    r"consistent with|signs of|symptoms of|suggests?)\b[^.!?\n]{0,25}?\b(brown patch|dollar spot|"
+    r"necrotic ring spot|fairy ring|snow mold|pythium|leaf spot|rust disease|summer patch|"
+    r"red thread|grubs?|chinch bugs?|billbugs?|fungus|fungal|disease|drought stress|heat stress)\b",
+    re.IGNORECASE)
+
 
 def numbers_in(text):
     return [float(x) for x in NUMBER_RE.findall(text)]
@@ -486,7 +513,36 @@ def rule_problems(answer, sources):
         problems.append("it gives watering amounts, schedules or instructions")
     if CAUSE_RE.search(answer):
         problems.append("it claims to know a cause or diagnoses the grass")
+    if DISEASE_RE.search(answer):
+        problems.append("it suggests a disease, pest or stress diagnosis")
     return problems
+
+
+def clean_photo(data_b64):
+    """Check an uploaded photo and re-save it as a small JPEG for Gemini. Re-saving drops all
+    hidden metadata (EXIF: GPS location, camera, time). Returns base64 JPEG text."""
+    try:
+        raw = base64.b64decode(data_b64.split(",", 1)[-1], validate=True)  # allows "data:...;base64,"
+    except ValueError:
+        raise AssistantError("The photo could not be read. Please choose a JPEG, PNG or WebP image.")
+    if len(raw) > MAX_PHOTO_BYTES:
+        raise AssistantError(f"The photo is too big (max {MAX_PHOTO_BYTES // (1024 * 1024)} MB).")
+    try:
+        image = Image.open(io.BytesIO(raw))
+        if image.format not in PHOTO_FORMATS:
+            raise AssistantError("Please choose a JPEG, PNG or WebP photo.")
+        if image.width * image.height > MAX_PHOTO_PIXELS:
+            raise AssistantError("The photo has too many pixels.")
+        image = ImageOps.exif_transpose(image)  # keep it the right way up before metadata is dropped
+        image = image.convert("RGB")
+        image.thumbnail((PHOTO_SIDE, PHOTO_SIDE))
+        out = io.BytesIO()
+        image.save(out, "JPEG", quality=85)  # no exif= argument -> no metadata in the new file
+    except AssistantError:
+        raise
+    except Exception:
+        raise AssistantError("The photo could not be read. Please choose a JPEG, PNG or WebP image.")
+    return base64.b64encode(out.getvalue()).decode("ascii")
 
 
 # ---------------------------------------------------------------------------
@@ -515,8 +571,9 @@ def agent_loop(contents, ctx, call, used):
     raise AssistantError("The AI needed too many steps for this question. Try asking more simply.")
 
 
-def ask(question, ctx, call=None):
-    """Answer one question (each question is answered on its own, no chat memory)."""
+def ask(question, ctx, call=None, photo=None):
+    """Answer one question (each question is answered on its own, no chat memory).
+    photo: optional base64 JPEG from clean_photo()."""
     call = call or call_gemini
     question = (question or "").strip()
     if not question:
@@ -526,8 +583,11 @@ def ask(question, ctx, call=None):
 
     who = "logged in" if ctx.logged_in else "not logged in"
     screen = "a field is drawn on the map ('screen')" if ctx.screen else "no field is drawn on the map"
-    intro = f"[Context: the user is {who}; {screen}; answer as of {ctx.as_of.isoformat()}.]\n"
+    attached = "; the user attached a photo (not a measurement, see rule 11)" if photo else ""
+    intro = f"[Context: the user is {who}; {screen}; answer as of {ctx.as_of.isoformat()}{attached}.]\n"
     contents = [{"role": "user", "parts": [{"text": intro + question}]}]
+    if photo:
+        contents[0]["parts"].append({"inlineData": {"mimeType": "image/jpeg", "data": photo}})
     used = []
     answer = agent_loop(contents, ctx, call, used)
 
@@ -537,7 +597,7 @@ def ask(question, ctx, call=None):
         contents.append({"role": "user", "parts": [{"text":
             "Your answer broke SpectralTurf's rules: " + "; ".join(problems) + ". Rewrite it. Use only "
             "numbers and dates copied from tool results (call tools again if needed); if the data is "
-            "missing, say 'not enough data'. No watering advice, no causes."}]})
+            "missing, say 'not enough data'. No watering advice, no causes, no disease names."}]})
         answer = agent_loop(contents, ctx, call, used)
         sources = [json.dumps(result) for _, result in used] + [intro, question, SYSTEM_PROMPT]
         problems = rule_problems(answer, sources) if answer else ["the answer was empty"]
@@ -548,4 +608,4 @@ def ask(question, ctx, call=None):
         return {"status": "blocked", "answer": BLOCKED, "tools_used": tools_used, "field_names": {},
                 "label": UI_LABEL}
     return {"status": "ok", "answer": answer, "tools_used": tools_used, "field_names": mentioned,
-            "label": UI_LABEL}
+            "label": UI_LABEL, "photo_used": bool(photo)}

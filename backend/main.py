@@ -415,6 +415,8 @@ class AskRequest(BaseModel):
     end: date | None = None
     max_cloud: int = Field(30, ge=0, le=100)
     as_of: date = Field(default_factory=date.today)
+    # Added 2026-11-22: one optional photo (base64 JPEG/PNG/WebP). Re-saved without metadata, never stored.
+    photo: str | None = Field(None, max_length=12_000_000, description="Optional photo, base64")
 
 
 @app.post("/api/ai/ask")
@@ -429,6 +431,12 @@ def ask(body: AskRequest, request: Request, user=Depends(current_user), db=Depen
         raise HTTPException(status_code=400,
                             detail=f"Questions can be at most {assistant.MAX_QUESTION_CHARS} characters.")
     check_as_of(body.as_of)
+    photo = None
+    if body.photo:
+        try:
+            photo = assistant.clean_photo(body.photo)
+        except assistant.AssistantError as e:
+            raise HTTPException(status_code=400, detail=str(e))
     screen, analyze_screen = None, None
     if body.geometry is not None:
         geometry = clean_polygon(body.geometry)
@@ -456,6 +464,6 @@ def ask(body: AskRequest, request: Request, user=Depends(current_user), db=Depen
     saved = accounts.list_analyses(db, user["id"]) if user else []  # only this user's rows (read only)
     ctx = assistant.Context(user is not None, saved, screen, analyze_screen, body.as_of)
     try:
-        return assistant.ask(question, ctx)
+        return assistant.ask(question, ctx, photo=photo)
     except assistant.AssistantError as e:
         raise HTTPException(status_code=503, detail=str(e))
