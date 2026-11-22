@@ -370,6 +370,18 @@ Progress:
       "7. Ask SpectralTurf — AI assistant". Tests backend/test_assistant.py (fake Gemini, 39/39).
       Real Gemini check (visitor, Village Greens turf, as of 2026-08-15): presets answered with
       numbers matching the tools; watering/disease question refused. Not yet clicked in a browser.
+      2026-11-22 (student request): COLLAPSIBLE SIDEBAR — new Panel.jsx (<details>) wraps every
+      sidebar section; header shows a short status; open/closed remembered (localStorage); steps
+      1-4 open on first visit, account + 5-7 + Good to know closed; Selected area/Analyze open by
+      themselves on a new shape/result. PHOTO + SPEECH for Ask: one JPEG/PNG/WebP per question
+      (browser shrinks to 1600 px; server clean_photo re-saves 1024 px JPEG = no EXIF/GPS; max 8 MB;
+      never stored); prompt rule 11 + DISEASE_RE (no disease/pest/cause or numbers from photos).
+      ChatExtras.jsx: PhotoButton, MicButton (browser SpeechRecognition -> fills the text box;
+      Chrome/Edge only, voice processed by the browser maker), ReadAloud (speechSynthesis, local).
+      Tests 38-46 (48/48). Verified in Chrome: panels open/close, Ask panel + buttons, a real
+      answer with Read aloud. Live photo test (synthetic photo via API): described a brown patch,
+      refused to name a disease. Photo picker + microphone NOT clicked in a browser (need a person).
+      NOTE: if the backend isn't running, the Vite proxy makes every request show "HTTP 500".
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.
