@@ -463,3 +463,47 @@ pre {
 .ask-answer ul {
   padding-left: 18px;
 }
+
+/* Collapsible sidebar panels (Panel.jsx): click a header to open or close it */
+.sidebar details.panel {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  border: 1px solid #d8ded9;
+  border-radius: 6px;
+  background: white;
+}
+.panel > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.panel > summary::-webkit-details-marker {
+  display: none;
+}
+.panel > summary::before {
+  content: '▸';
+  color: #66736b;
+  transition: transform 0.15s;
+}
+.panel[open] > summary::before {
+  transform: rotate(90deg);
+}
+.panel > summary:hover {
+  background: #f4f6f4;
+}
+.sidebar .panel > summary h2 {
+  margin: 0;
+  flex: 1;
+}
+.panel-status {
+  font-size: 0.75rem;
+  color: #66736b;
+  white-space: nowrap;
+}
+.panel-body {
+  padding: 0 10px 10px;
+}

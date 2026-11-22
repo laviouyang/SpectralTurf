@@ -15,6 +15,7 @@ import MyFields from './MyFields.jsx';
 import WhatIf from './WhatIf.jsx';
 import AIWeatherCheck from './AIWeatherCheck.jsx';
 import AskSpectralTurf from './AskSpectralTurf.jsx';
+import Panel from './Panel.jsx';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
@@ -161,8 +162,7 @@ export default function App() {
 
       <main className="layout">
         <aside className="sidebar">
-          <section>
-            <h2>Your account</h2>
+          <Panel id="account" title="Your account" status={user ? `Logged in as ${user.username}` : 'Not logged in'}>
             <AccountPanel
               user={user}
               onUserChange={setUser}
@@ -172,15 +172,13 @@ export default function App() {
               onShow={handleShowSaved}
               onDelete={handleDelete}
             />
-          </section>
+          </Panel>
 
-          <section>
-            <h2>1. Find a place</h2>
+          <Panel id="find" title="1. Find a place" defaultOpen>
             <SearchBox onSelect={setSearchTarget} />
-          </section>
+          </Panel>
 
-          <section>
-            <h2>2. Outline the turf</h2>
+          <Panel id="outline" title="2. Outline the turf (how to)" defaultOpen status={polygon ? '✓ outline drawn' : null}>
             <ol className="steps">
               <li>Click the <strong>polygon</strong> (pentagon) or <strong>rectangle</strong> tool at the top left of the map.</li>
               <li>Click around the grass. Click the first point again to finish.</li>
@@ -192,10 +190,15 @@ export default function App() {
               </li>
               <li>To adjust it, click <strong>Edit shape</strong>, drag the corners, then <strong>Save shape</strong>. Drawing again replaces it.</li>
             </ol>
-          </section>
+          </Panel>
 
-          <section>
-            <h2>3. Selected area</h2>
+          <Panel
+            id="area"
+            title="3. Selected area"
+            defaultOpen
+            openWhen={polygon}
+            status={check ? (check.ok ? `✓ ${Math.round(check.facts.areaM2).toLocaleString()} m²` : '⚠ needs a fix') : 'none yet'}
+          >
             {!polygon && <p className="muted">No area selected yet. Draw a shape on the map.</p>}
 
             {check && (
@@ -284,10 +287,15 @@ export default function App() {
                 </details>
               </>
             )}
-          </section>
+          </Panel>
 
-          <section>
-            <h2>4. Analyze</h2>
+          <Panel
+            id="analyze"
+            title="4. Analyze"
+            defaultOpen
+            openWhen={result}
+            status={loading ? 'analyzing…' : result ? `✓ image ${result.observation?.date}` : null}
+          >
             <div className="dates">
               <label>
                 From
@@ -336,24 +344,21 @@ export default function App() {
                 defaultAsOf={end}
               />
             )}
-          </section>
+          </Panel>
 
-          <section>
-            <h2>5. My Fields — AI ranking</h2>
+          <Panel id="myfields" title="5. My Fields — AI ranking" status={user ? null : 'log in to use'}>
             <MyFields user={user} onShow={handleShowSaved} />
-          </section>
+          </Panel>
 
-          <section>
-            <h2>6. What if? — AI weather scenario</h2>
+          <Panel id="whatif" title="6. What if? — AI weather scenario">
             <WhatIf
               geometry={check?.ok && !editing ? polygon.geojson : null}
               exclude={exclusions.map((shape) => shape.geojson)}
               user={user}
             />
-          </section>
+          </Panel>
 
-          <section>
-            <h2>7. Ask SpectralTurf — AI assistant</h2>
+          <Panel id="ask" title="7. Ask SpectralTurf — AI assistant">
             <AskSpectralTurf
               geometry={check?.ok && !editing ? polygon.geojson : null}
               exclude={exclusions.map((shape) => shape.geojson)}
@@ -362,16 +367,15 @@ export default function App() {
               asOf={end && end < new Date().toLocaleDateString('en-CA') ? end : new Date().toLocaleDateString('en-CA')}
               user={user}
             />
-          </section>
+          </Panel>
 
-          <section className="limits">
-            <h2>Good to know</h2>
+          <Panel id="goodtoknow" title="Good to know" className="limits">
             <p>
               Sentinel-2 pixels are 10 m wide (20 m for moisture), so small dry patches may not show up,
               and pixels at the edges can mix grass with dirt or pavement. The background photo is only
               for drawing. The analysis uses Sentinel-2 data.
             </p>
-          </section>
+          </Panel>
         </aside>
 
         <MapView
