@@ -395,6 +395,19 @@ Progress:
       unchanged). Tests backend/test_limits.py 23/23. Frontend already used relative /api.
       Unverified on Render: staticPublishPath relative to rootDir, rewrite of POST/large photo
       bodies, Python 3.13.14 availability.
+- UI REDESIGN (2026-11-23, branch `ui-redesign`, NOT merged; student approves first). Layout,
+      styling, navigation only. router.jsx (pushState, no library) + Site.jsx: / HomePage, /app App,
+      /about AboutPage, else 404. main.jsx renders <Site/>. App.jsx: same state/handlers/API calls;
+      new JSX = top bar (logo, SearchBox, AccountMenu) + floating tabbed panel (Analyze / My Fields /
+      AI Check / Ask AI; tabs stay mounted with `hidden`, so nothing re-runs) -> bottom sheet <=760 px.
+      AIWeatherCheck moved to the AI Check tab (same key/condition). Results.jsx: key numbers + cards
+      (same text). AccountPanel adds export SavedAnalyses. New CSS theme.css/site.css/appshell.css
+      (brand colors, Fraunces + Inter from Google Fonts). Homepage hero = REAL analysis
+      (public/preview/*.png + src/previewFacts.json: Village Greens box -104.8805,39.6320,
+      -104.8735,39.6375, image 2026-08-05). Stats: CO Water Plan 2023 (up to 740k AF/yr M&I gap
+      2050), EPA WaterSense (up to 50%), Axios Aug 14 2026 (~5,500 Denver Water reports). No logo
+      existed in the repo -> new SVG (Icons.jsx Logo, public/logo.svg). Checked in Chrome (desktop +
+      390 px iframe); window resize not possible there, real phone untested.
 - STEP 2 DECISION (student): drop fields whose NDVI never rises above 0.3 during the season
   (use the field's high percentile, e.g. 90th, over all clear dates — NOT a summer median, since
   unwatered park grass can be < 0.3 all August yet greens up in spring) and REPORT them.

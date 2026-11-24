@@ -141,3 +141,22 @@ export default function AccountPanel({ user, onUserChange, onLogOut, history, hi
     </div>
   );
 }
+
+// Added 2026-11-23 (UI redesign): just the saved-analyses list, for the app's "My Fields" tab.
+// Same items and buttons as above; the login form and "Log out" stay in the account menu.
+export function SavedAnalyses({ history, historyError, onShow, onDelete }) {
+  return (
+    <div>
+      {historyError && <p className="problems-box">{historyError}</p>}
+      {history.length === 0 ? (
+        <p className="muted">No saved analyses yet. Each analysis you run while logged in is saved here.</p>
+      ) : (
+        <ul className="history-list">
+          {history.map((item) => (
+            <HistoryItem key={item.id} item={item} onShow={onShow} onDelete={onDelete} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

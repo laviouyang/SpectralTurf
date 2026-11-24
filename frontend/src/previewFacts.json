@@ -1,0 +1,39 @@
+{
+ "place": "Village Greens Park area, Greenwood Village, CO",
+ "box": {
+  "west": -104.8805,
+  "south": 39.632,
+  "east": -104.8735,
+  "north": 39.6375
+ },
+ "date": "2026-08-05",
+ "tile_cloud_cover": 0.0,
+ "ndvi_median": 0.219,
+ "ndmi_median": -0.097,
+ "clear_fraction": 1.0,
+ "status": "ok",
+ "inspection_headline": "Most of this field may warrant inspection",
+ "ndvi_scale": [
+  [
+   0.0,
+   "#8c510a"
+  ],
+  [
+   0.2,
+   "#d8b365"
+  ],
+  [
+   0.4,
+   "#f7fcb9"
+  ],
+  [
+   0.6,
+   "#78c679"
+  ],
+  [
+   0.8,
+   "#006837"
+  ]
+ ],
+ "source": "Copernicus Sentinel-2 Level-2A via Copernicus Data Space Ecosystem (Sentinel Hub)"
+}

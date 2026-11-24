@@ -1,0 +1,89 @@
+/*
+ * SiteChrome.jsx - The top navigation bar and footer shared by the Home and About pages
+ * (added 2026-11-23, UI redesign).
+ */
+import { useState } from 'react';
+import { Link } from './router.jsx';
+import { Icon, Logo } from './Icons.jsx';
+
+export const GITHUB_URL = 'https://github.com/laviouyang/SpectralTurf';
+
+export function Brand() {
+  return (
+    <Link to="/" className="brand" aria-label="SpectralTurf home">
+      <Logo size={32} />
+      <span className="brand-name">SpectralTurf</span>
+    </Link>
+  );
+}
+
+export function SiteNav() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const close = () => setMenuOpen(false);
+  return (
+    <header className="site-nav">
+      <div className="container nav-inner">
+        <Brand />
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-expanded={menuOpen}
+          aria-controls="site-menu"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          <Icon name={menuOpen ? 'close' : 'list'} size={22} />
+          <span className="visually-hidden">Menu</span>
+        </button>
+        <nav id="site-menu" className={`nav-menu ${menuOpen ? 'open' : ''}`} aria-label="Main">
+          <div className="nav-links">
+            <Link to="/#how" onClick={close}>How it works</Link>
+            <Link to="/#ai" onClick={close}>AI</Link>
+            <Link to="/about" onClick={close}>About</Link>
+          </div>
+          <div className="nav-actions">
+            <Link to="/app#account" className="btn btn-ghost" onClick={close}>Log in</Link>
+            <Link to="/app" className="btn btn-primary" onClick={close}>Open the app</Link>
+          </div>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+export function SiteFooter() {
+  return (
+    <footer className="site-footer">
+      <div className="container footer-grid">
+        <div>
+          <Brand />
+          <p className="footer-disclaimer">
+            Decision support, not a diagnosis or irrigation controller. A person always makes the
+            final call after looking at the field.
+          </p>
+        </div>
+        <div>
+          <h2 className="footer-heading">Explore</h2>
+          <ul className="footer-links">
+            <li><Link to="/app">Open the app</Link></li>
+            <li><Link to="/#how">How it works</Link></li>
+            <li><Link to="/about">About &amp; methodology</Link></li>
+            <li>
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                <Icon name="github" size={16} /> Source code on GitHub
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h2 className="footer-heading">Data credits</h2>
+          <ul className="footer-links footer-credits">
+            <li>Contains modified Copernicus Sentinel-2 data (Copernicus Data Space Ecosystem)</li>
+            <li>Weather data by Open-Meteo.com</li>
+            <li>Field outlines and place search © OpenStreetMap contributors</li>
+          </ul>
+        </div>
+      </div>
+      <div className="container footer-bottom">© 2026 Yuanzhi Ouyang</div>
+    </footer>
+  );
+}
