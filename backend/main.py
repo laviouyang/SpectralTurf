@@ -421,6 +421,9 @@ class AskRequest(BaseModel):
     as_of: date = Field(default_factory=date.today)
     # Added 2026-11-22: one optional photo (base64 JPEG/PNG/WebP). Re-saved without metadata, never stored.
     photo: str | None = Field(None, max_length=12_000_000, description="Optional photo, base64")
+    # Added 2026-11-25 (Version 2): the ONE field the questions are about: "screen" (the field
+    # on the map) or the id of one of your saved analyses. Optional, so old requests still work.
+    field: str | None = Field(None, max_length=40, description="'screen' or a saved analysis id")
 
 
 @app.post("/api/ai/ask")
@@ -467,6 +470,19 @@ def ask(body: AskRequest, request: Request, user=Depends(current_user), db=Depen
         raise HTTPException(status_code=429, detail=str(e))
     saved = accounts.list_analyses(db, user["id"]) if user else []  # only this user's rows (read only)
     ctx = assistant.Context(user is not None, saved, screen, analyze_screen, body.as_of)
+    if body.field is not None:  # Version 2: answer only about the field the user picked
+        picked = body.field.strip().lower()
+        if picked == "screen":
+            if screen is None:
+                raise HTTPException(status_code=400, detail="Draw a field on the map first.")
+        else:
+            if user is None:
+                raise HTTPException(status_code=401, detail="Log in to ask about your saved fields.")
+            label = ctx.label_for_saved_id(int(picked)) if picked.isdigit() else None
+            if label is None:
+                raise HTTPException(status_code=404, detail="That field is not in your saved fields.")
+            picked = label
+        ctx.focus = picked
     try:
         return assistant.ask(question, ctx, photo=photo)
     except assistant.AssistantError as e:

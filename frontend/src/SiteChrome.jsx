@@ -2,7 +2,8 @@
  * SiteChrome.jsx - The top navigation bar and footer shared by the Home and About pages
  * (added 2026-11-23, UI redesign).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { currentUser } from './api.js';
 import { Link } from './router.jsx';
 import { Icon, Logo } from './Icons.jsx';
 
@@ -20,6 +21,11 @@ export function Brand() {
 export function SiteNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const close = () => setMenuOpen(false);
+  // Version 2: if a saved login is still valid, show who is logged in (top right).
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    currentUser().then(setUser);
+  }, []);
   return (
     <header className="site-nav">
       <div className="container nav-inner">
@@ -41,7 +47,14 @@ export function SiteNav() {
             <Link to="/about" onClick={close}>About</Link>
           </div>
           <div className="nav-actions">
-            <Link to="/app#account" className="btn btn-ghost" onClick={close}>Log in</Link>
+            {user ? (
+              <Link to="/app#account" className="btn btn-ghost nav-user" onClick={close} title="Your account">
+                <span className="avatar" aria-hidden="true">{user.username.slice(0, 1).toUpperCase()}</span>
+                Logged in as {user.username}
+              </Link>
+            ) : (
+              <Link to="/app#account" className="btn btn-ghost" onClick={close}>Log in</Link>
+            )}
             <Link to="/app" className="btn btn-primary" onClick={close}>Open the app</Link>
           </div>
         </nav>

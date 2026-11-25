@@ -151,8 +151,11 @@ class Context:
     analyze_screen: function that runs the normal analysis for the field on screen (or None).
     as_of:          the date questions are answered for."""
 
-    def __init__(self, logged_in, saved, screen, analyze_screen, as_of):
+    def __init__(self, logged_in, saved, screen, analyze_screen, as_of, focus=None):
         self.logged_in = logged_in
+        # Version 2 (2026-11-25): the ONE field the user picked ("screen" or "field-N"), or None.
+        # When set, the tools refuse every other field, so answers are about that field only.
+        self.focus = focus
         self.saved = saved if logged_in else []
         self.screen = screen
         self.analyze_screen = analyze_screen
@@ -168,6 +171,8 @@ class Context:
     def find(self, field_id):
         """The field for a tool, ONLY from this user's own fields or the field on screen."""
         field_id = str(field_id or "").strip().lower()
+        if self.focus and field_id != self.focus:
+            raise ToolDataError(f"The user picked one field ('{self.focus}'). Only that field can be used.")
         if field_id == "screen":
             if not self.screen:
                 raise ToolDataError("No field is drawn on the map.")
@@ -179,6 +184,16 @@ class Context:
             raise ToolDataError(f"There is no field '{field_id}' in your fields. "
                                 f"Your fields: {', '.join(self.fields) or 'none saved yet'}.")
         return field_id, field["geometry"], field["exclusions"]
+
+    def label_for_saved_id(self, saved_id):
+        """Version 2: the 'field-N' label of one of THIS user's saved analyses (by its id), or None."""
+        for s in self.saved:
+            if s["id"] == saved_id:
+                key = json.dumps([s["geometry"], s["exclusions"]], sort_keys=True)
+                for label, f in self.fields.items():
+                    if json.dumps([f["geometry"], f["exclusions"]], sort_keys=True) == key:
+                        return label
+        return None
 
     def saved_for(self, field_id):
         """This user's saved analyses of one field (same outline + exclusions), newest first."""
@@ -266,6 +281,16 @@ _screen_cache = {}  # analysis of the field on screen, so repeated questions don
 
 
 def tool_get_my_fields(ctx, args):
+    if ctx.focus:  # Version 2: the user picked one field; only that one is listed
+        if ctx.focus == "screen":
+            entry = {"field_id": "screen", "what": "the field drawn on the map now (not necessarily saved)"}
+        else:
+            saves = ctx.saved_for(ctx.focus)
+            entry = {"field_id": ctx.focus, "saved_analyses": len(saves),
+                     "latest_image_date": saves[0]["observation_date"] if saves else None,
+                     "latest_inspection_headline": saves[0]["summary"].get("inspection_headline") if saves else None}
+        return {"logged_in": ctx.logged_in, "fields": [entry],
+                "note": "The user picked this one field. Answer only about it."}
     fields = [{"field_id": "screen", "what": "the field drawn on the map now (not necessarily saved)"}] \
         if ctx.screen else []
     if not ctx.logged_in:
@@ -342,6 +367,9 @@ def check_facts(check):
 
 
 def tool_get_ranking(ctx, args):
+    if ctx.focus:
+        raise ToolDataError(f"The user picked one field ('{ctx.focus}'), so there is no ranking of "
+                            "several fields. Use the other tools for this field.")
     if not ctx.logged_in:
         raise ToolDataError("Not logged in: the ranking needs saved fields. Only the field on screen "
                             "('screen') can be used; log in and analyze fields to rank them.")
@@ -584,7 +612,8 @@ def ask(question, ctx, call=None, photo=None):
     who = "logged in" if ctx.logged_in else "not logged in"
     screen = "a field is drawn on the map ('screen')" if ctx.screen else "no field is drawn on the map"
     attached = "; the user attached a photo (not a measurement, see rule 11)" if photo else ""
-    intro = f"[Context: the user is {who}; {screen}; answer as of {ctx.as_of.isoformat()}{attached}.]\n"
+    picked = f"; the user picked ONE field ('{ctx.focus}'): answer only about that field" if ctx.focus else ""
+    intro = f"[Context: the user is {who}; {screen}{picked}; answer as of {ctx.as_of.isoformat()}{attached}.]\n"
     contents = [{"role": "user", "parts": [{"text": intro + question}]}]
     if photo:
         contents[0]["parts"].append({"inlineData": {"mimeType": "image/jpeg", "data": photo}})

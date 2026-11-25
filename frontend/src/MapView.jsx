@@ -128,7 +128,8 @@ export default function MapView({
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     });
-    satellite.addTo(map);
+    // Version 2 (student request): start on the street map; the satellite photo is one click away.
+    streets.addTo(map);
     L.control.layers({ 'Satellite photo (Esri)': satellite, 'Street map (OpenStreetMap)': streets }).addTo(map);
     L.control.scale({ metric: true, imperial: true }).addTo(map);
 

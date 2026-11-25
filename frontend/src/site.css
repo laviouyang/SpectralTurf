@@ -706,3 +706,10 @@ button.nav-toggle:hover:not(:disabled) {
     gap: var(--s4);
   }
 }
+
+/* Version 2: "Logged in as ..." in the top navigation */
+.nav-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

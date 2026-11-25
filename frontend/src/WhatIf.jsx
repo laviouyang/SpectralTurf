@@ -39,7 +39,8 @@ function Estimate({ name, result }) {
   );
 }
 
-export default function WhatIf({ geometry, exclude, user }) {
+// fieldLabel (Version 2): the name shown on the estimate for the picked field.
+export default function WhatIf({ geometry, exclude, user, fieldLabel = 'Field on the map' }) {
   const [limits, setLimits] = useState(null);
   const [asOf, setAsOf] = useState(today());
   const [dryDays, setDryDays] = useState(7);
@@ -172,7 +173,7 @@ export default function WhatIf({ geometry, exclude, user }) {
                   example 2026-08-15) to try it.
                 </li>
               ) : (
-                <Estimate name="Field on the map" result={answer.current_field} />
+                <Estimate name={fieldLabel} result={answer.current_field} />
               )
             )}
             {answer.my_fields?.map((entry) => (

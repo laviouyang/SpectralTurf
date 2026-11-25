@@ -9,6 +9,9 @@
  * floating panel with tabs (Analyze / My Fields / AI Check / Ask AI); on phones the panel is a
  * bottom sheet. Only the layout changed: the same components, state and API calls as before.
  * All tabs stay mounted (just hidden), so nothing reloads or re-runs when you switch tabs.
+ * Version 2 (2026-11-25, student requests): dates default to "the 2 weeks up to yesterday" and
+ * can't be reversed; My Fields / AI Check / Ask AI need an account; the AI tools have a field
+ * drop-down (FieldPicker.jsx); Ask AI only works after picking ONE field.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapView from './MapView.jsx';
@@ -20,11 +23,23 @@ import WhatIf from './WhatIf.jsx';
 import AIWeatherCheck from './AIWeatherCheck.jsx';
 import AskSpectralTurf from './AskSpectralTurf.jsx';
 import Panel from './Panel.jsx';
+import FieldPicker, { distinctFields } from './FieldPicker.jsx';
 import { AccountMenu, EmptyState, ResultsSkeleton, Spinner } from './AppChrome.jsx';
 import { Icon, Logo } from './Icons.jsx';
 import { Link } from './router.jsx';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
+
+// Dates as YYYY-MM-DD in the user's own time zone (Version 2).
+function isoDay(date) {
+  return date.toLocaleDateString('en-CA');
+}
+function daysBefore(day, n) {
+  const d = new Date(`${day}T12:00:00`); // midday, so daylight-saving changes can't skip a day
+  d.setDate(d.getDate() - n);
+  return isoDay(d);
+}
+const DATE_RANGE_DAYS = 14; // default search window: 2 weeks (a project choice)
 
 export default function App() {
   // The drawn area (or null if nothing is drawn yet).
@@ -39,8 +54,18 @@ export default function App() {
   const [searchTarget, setSearchTarget] = useState(null);
 
   // Analysis options and results.
-  const [start, setStart] = useState('2026-06-01');
-  const [end, setEnd] = useState('2026-08-31');
+  // Version 2: "To" = yesterday (the day before you use the app), "From" = 2 weeks before that.
+  const [end, setEnd] = useState(() => daysBefore(isoDay(new Date()), 1));
+  const [start, setStart] = useState(() => daysBefore(daysBefore(isoDay(new Date()), 1), DATE_RANGE_DAYS));
+  // "To" can never be before "From": moving one past the other moves the other one too.
+  function changeStart(day) {
+    setStart(day);
+    if (day && end && day > end) setEnd(day);
+  }
+  function changeEnd(day) {
+    setEnd(day);
+    if (day && start && day < start) setStart(daysBefore(day, DATE_RANGE_DAYS));
+  }
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -57,6 +82,15 @@ export default function App() {
   const [fieldName, setFieldName] = useState('');
   // Set by "Show on map": tells the map to draw a saved outline and exclusions.
   const [loadRequest, setLoadRequest] = useState(null);
+
+  // Version 2: which field each AI tool uses: 'map' (the field on the map) or a saved
+  // analysis id (as text). Ask AI starts with nothing picked: you must pick a field first.
+  const [checkField, setCheckField] = useState('map');
+  const [whatIfField, setWhatIfField] = useState('map');
+  const [askField, setAskField] = useState('');
+  const myFields = useMemo(() => distinctFields(history), [history]);
+  const savedField = (value) => myFields.find((f) => String(f.id) === value) || null;
+  const pickedName = (value) => (value === 'map' ? 'Field on the map' : savedField(value)?.name || 'Unnamed field');
 
   // Layout only (UI redesign): which tab is shown, the account menu, and the panel/sheet.
   const [tab, setTab] = useState('analyze');
@@ -178,10 +212,34 @@ export default function App() {
   const today = new Date().toLocaleDateString('en-CA');
   const TABS = [
     { id: 'analyze', label: 'Analyze', icon: 'draw' },
-    { id: 'myfields', label: 'My Fields', icon: 'list' },
-    { id: 'aicheck', label: 'AI Check', icon: 'chart' },
-    { id: 'ask', label: 'Ask AI', icon: 'chat' },
+    { id: 'myfields', label: 'My Fields', icon: 'list', needsAccount: true },
+    { id: 'aicheck', label: 'AI Check', icon: 'chart', needsAccount: true },
+    { id: 'ask', label: 'Ask AI', icon: 'chat', needsAccount: true },
   ];
+
+  // Version 2: My Fields, AI Check and Ask AI need an account. This is what they show instead.
+  function loginNeeded(icon, title) {
+    return (
+      <EmptyState
+        icon={icon}
+        title={title}
+        action={(
+          <button type="button" onClick={() => setAccountOpen(true)}>
+            Log in or create an account
+          </button>
+        )}
+      >
+        <p>
+          My Fields, the AI checks and Ask AI need a free account (username and password only).
+          Analyzing a field works without one.
+        </p>
+      </EmptyState>
+    );
+  }
+
+  // Ask AI: a field must be picked first, and it must still exist.
+  const mapAskable = Boolean(check?.ok && !editing);
+  const askReady = askField === 'map' ? mapAskable : Boolean(savedField(askField));
 
   return (
     <div className="app-shell" data-sheet={sheetOpen ? 'open' : 'closed'} data-panel={panelHidden ? 'hidden' : 'shown'}>
@@ -261,7 +319,8 @@ export default function App() {
               >
                 <Icon name={t.icon} size={18} />
                 <span>{t.label}</span>
-                {t.id === 'aicheck' && result && <span className="tab-dot" title="Ready for this field" />}
+                {t.needsAccount && !user && <span className="tab-lock" title="Needs an account" aria-label="needs an account">🔒</span>}
+                {t.id === 'aicheck' && result && user && <span className="tab-dot" title="Ready for this field" />}
               </button>
             ))}
             <button
@@ -402,11 +461,11 @@ export default function App() {
                 <div className="dates">
                   <label>
                     From
-                    <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+                    <input type="date" value={start} onChange={(e) => changeStart(e.target.value)} />
                   </label>
                   <label>
                     To
-                    <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+                    <input type="date" value={end} onChange={(e) => changeEnd(e.target.value)} />
                   </label>
                 </div>
                 {!datesOk && <p className="problems">The start date must be on or before the end date.</p>}
@@ -444,7 +503,14 @@ export default function App() {
               {loading && <ResultsSkeleton />}
               {result && <Results result={result} layer={layer} onLayerChange={setLayer} />}
               {result && (
-                <button type="button" className="secondary btn-block" onClick={() => openTab('aicheck')}>
+                <button
+                  type="button"
+                  className="secondary btn-block"
+                  onClick={() => {
+                    setCheckField('map');
+                    openTab('aicheck');
+                  }}
+                >
                   <Icon name="chart" size={18} /> See the AI Weather Check for this field
                 </button>
               )}
@@ -497,45 +563,106 @@ export default function App() {
 
             {/* ===== AI Check: Weather Check + What if? ===== */}
             <div role="tabpanel" id="tabpanel-aicheck" aria-labelledby="tab-aicheck" hidden={tab !== 'aicheck'}>
-              <Panel id="v2-weathercheck" title="AI Weather Check" defaultOpen>
-                {result && polygon ? (
-                  <AIWeatherCheck
-                    key={JSON.stringify([polygon.geojson, excludeShapes, end])}
-                    geometry={polygon.geojson}
-                    exclude={excludeShapes}
-                    defaultAsOf={end}
-                  />
-                ) : (
-                  <EmptyState icon="chart" title="Analyze a field first">
-                    <p>
-                      After an analysis, the AI compares the newest clear image with what it expected
-                      from recent weather.
-                    </p>
-                  </EmptyState>
-                )}
-              </Panel>
-              <Panel id="v2-whatif" title="What if? — AI weather scenario" defaultOpen>
-                <WhatIf
-                  geometry={check?.ok && !editing ? polygon.geojson : null}
-                  exclude={excludeShapes}
-                  user={user}
-                />
-              </Panel>
+              {!user ? loginNeeded('chart', 'Log in to use the AI checks') : (
+                <>
+                  <Panel id="v2-weathercheck" title="AI Weather Check" defaultOpen>
+                    <FieldPicker
+                      label="Field to check"
+                      value={checkField}
+                      onChange={setCheckField}
+                      fields={myFields}
+                      mapAvailable={Boolean(result && polygon)}
+                    />
+                    {checkField === 'map' ? (
+                      result && polygon ? (
+                        <AIWeatherCheck
+                          key={JSON.stringify([polygon.geojson, excludeShapes, end])}
+                          geometry={polygon.geojson}
+                          exclude={excludeShapes}
+                          defaultAsOf={end}
+                        />
+                      ) : (
+                        <EmptyState icon="chart" title="Analyze a field first">
+                          <p>
+                            After an analysis, the AI compares the newest clear image with what it expected
+                            from recent weather. Or pick one of your saved fields above.
+                          </p>
+                        </EmptyState>
+                      )
+                    ) : savedField(checkField) && (
+                      <AIWeatherCheck
+                        key={`saved-${checkField}`}
+                        geometry={savedField(checkField).geometry}
+                        exclude={savedField(checkField).exclusions}
+                        defaultAsOf={savedField(checkField).end}
+                      />
+                    )}
+                  </Panel>
+                  <Panel id="v2-whatif" title="What if? — AI weather scenario" defaultOpen>
+                    <FieldPicker
+                      label="Field for the scenario"
+                      value={whatIfField}
+                      onChange={setWhatIfField}
+                      fields={myFields}
+                      mapAvailable={Boolean(check?.ok && !editing)}
+                    />
+                    <WhatIf
+                      geometry={whatIfField === 'map'
+                        ? (check?.ok && !editing ? polygon.geojson : null)
+                        : savedField(whatIfField)?.geometry || null}
+                      exclude={whatIfField === 'map' ? excludeShapes : savedField(whatIfField)?.exclusions || []}
+                      user={user}
+                      fieldLabel={pickedName(whatIfField)}
+                    />
+                  </Panel>
+                </>
+              )}
             </div>
 
             {/* ===== Ask AI ===== */}
             <div role="tabpanel" id="tabpanel-ask" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
-              <div className="card">
-                <h2 className="card-title">Ask SpectralTurf</h2>
-                <AskSpectralTurf
-                  geometry={check?.ok && !editing ? polygon.geojson : null}
-                  exclude={excludeShapes}
-                  start={result ? start : null}
-                  end={result ? end : null}
-                  asOf={end && end < today ? end : today}
-                  user={user}
-                />
-              </div>
+              {!user ? loginNeeded('chat', 'Log in to ask SpectralTurf') : (
+                <div className="card">
+                  <h2 className="card-title">Ask SpectralTurf</h2>
+                  <FieldPicker
+                    label="First, pick the field your questions are about"
+                    value={askReady ? askField : ''}
+                    onChange={setAskField}
+                    fields={myFields}
+                    mapAvailable={mapAskable}
+                    required
+                  />
+                  {!askReady ? (
+                    <p className="notice notice-info">
+                      Pick a field above to start. Every question will be about that one field.
+                    </p>
+                  ) : askField === 'map' ? (
+                    <AskSpectralTurf
+                      key="map"
+                      field="screen"
+                      fieldLabel="the field on the map"
+                      geometry={polygon.geojson}
+                      exclude={excludeShapes}
+                      start={result ? start : null}
+                      end={result ? end : null}
+                      asOf={end && end < today ? end : today}
+                      user={user}
+                    />
+                  ) : (
+                    <AskSpectralTurf
+                      key={`saved-${askField}`}
+                      field={askField}
+                      fieldLabel={pickedName(askField)}
+                      geometry={null}
+                      exclude={[]}
+                      start={null}
+                      end={null}
+                      asOf={end && end < today ? end : today}
+                      user={user}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </aside>

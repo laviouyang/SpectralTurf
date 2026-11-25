@@ -450,3 +450,28 @@ button.panel-tab[aria-selected='true'] {
     padding-bottom: var(--s4);
   }
 }
+
+/* Version 2 (2026-11-25): field drop-down for the AI tools, and the lock on account-only tabs */
+.field-picker {
+  display: block;
+  margin-bottom: var(--s2, 12px);
+  font-weight: 500;
+}
+.field-picker select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  font: inherit;
+  font-weight: 400;
+  border: 1px solid var(--line, #ccc);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+.tab-lock {
+  position: absolute;
+  top: 2px;
+  right: calc(50% - 20px);
+  font-size: 0.7rem;
+}

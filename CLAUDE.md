@@ -5,24 +5,37 @@ passed), now extended for **WAICY** (due **November 29, 2026**). Author: Yuanzhi
 The student must be able to explain every major part to judges, so keep code simple,
 beginner-readable, and scientifically honest. Do not overengineer. Explain things simply.
 
-## Current status (updated 2026-11-25) — read this first in a new conversation
+## Current status (updated 2026-11-25, later) — read this first in a new conversation
 - Branch `main` (GitHub, pushed 2026-11-22, commit 71840e5): everything up to Render deploy prep.
-- Branch `ui-redesign` (on GitHub; redesign commit 37b050d + notes updates): new homepage,
-  /about page and redesigned map app. **NOT merged — the student must approve before merging into
-  main.** Never merge it without being asked.
-- Render: prepared (render.yaml, docs/DEPLOY_RENDER.md) but **NOT deployed**. The student deploys
-  it themselves; Claude must not deploy.
-- Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of the
-  redesign; real-phone test; Render deploy by the student.
-- All tests passed on 2026-11-23 (both branches): test_indices, test_accounts 16, test_predict 58,
-  test_assistant 48, test_limits 23, ml get_fields 20, ndvi_history 11, weather 6,
-  dataset_and_model 15, dataset_v3 13; frontend builds.
+- Branch `version-2` (= the old `ui-redesign`, renamed LOCALLY 2026-11-25 at the student's
+  request; GitHub still has it as `ui-redesign` until the student approves a push): new homepage,
+  /about page, redesigned map app + the Version 2 changes below. **NOT merged — the student must
+  approve before merging into main.** Never merge it without being asked.
+- Render: the student DEPLOYED it themselves (told Claude 2026-11-25). Claude must not deploy.
+- VERSION 2 CHANGES (2026-11-25, student requests, on `version-2`): homepage nav shows
+  "Logged in as <name>" (SiteChrome.jsx calls currentUser); map starts on the OSM street map;
+  My Fields / AI Check / Ask AI need an account (frontend lock + 🔒 on tabs; the backend AI
+  endpoints still accept visitors); dates default To = yesterday, From = To − 14 days; moving
+  From past To moves To to the same day, moving To before From moves From to 14 days before;
+  FieldPicker.jsx (new) = drop-down of "Field on the map" + distinct saved fields for AI Weather
+  Check, What if? and Ask AI; Ask AI requires picking ONE field first -> POST /api/ai/ask
+  optional `field` ("screen" or a saved analysis id) -> assistant.Context(focus=...) refuses
+  every other field and the ranking. Tests backend/test_ask_focus.py 15/15. Checked in Chrome
+  with a THROWAWAY database (DATABASE_PATH in the scratchpad, deleted after): street map, dates,
+  locks, homepage login, AI Weather Check on a saved field (real data), Ask AI on a saved field
+  (real Gemini). What-if drop-down not clicked in a browser; no real phone test.
+- Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
+  `version-2`; push of the renamed branch (ask first); real-phone test.
+- All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
+  test_assistant 48, test_limits 23, test_ask_focus 15 (version-2 only), ml get_fields 20,
+  ndvi_history 11, weather 6, dataset_and_model 15, dataset_v3 13; frontend builds.
 
 ## How to run all tests
 ```
 cd backend
 python test_indices.py; python test_accounts.py; python test_predict.py
 python test_assistant.py; python test_limits.py
+python test_ask_focus.py   # version-2 branch only
 cd ..
 python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
 python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py
