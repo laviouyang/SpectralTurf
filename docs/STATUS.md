@@ -17,7 +17,7 @@ diagnoses disease or gives watering instructions).
 |---|---|---|---|
 | `main` | local + GitHub (`origin/main`), in sync | `30bc53c` (2026-11-25) CLAUDE.md notes | Old single-sidebar UI. Everything up to Render deploy prep (`71840e5`) + one CLAUDE.md notes commit. |
 | `version-2` (local name) | local; **tracks `origin/ui-redesign`** on GitHub | `c7a4e74` (2026-11-25) | = the former `ui-redesign` branch, renamed locally at the student's request. Redesigned website + all "Version 2" changes. |
-| `origin/ui-redesign` | GitHub | was `7777089` before this report | GitHub name of the same branch. Updated to `version-2`'s commits when this report was pushed (see the end). |
+| `origin/ui-redesign` | GitHub | `7777089` (2026-11-25) | GitHub name of the same branch. **Behind local `version-2`** (missing all Version 2 changes and this report) until `version-2` is pushed to it. |
 | `us-expansion` | — | — | **Does not exist** (not local, not on GitHub). The homepage only has a "coming soon" state picker. |
 
 Current branch: **`version-2`**.
