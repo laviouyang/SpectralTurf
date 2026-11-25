@@ -477,9 +477,32 @@ button.panel-tab[aria-selected='true'] {
 }
 
 /* ---- Version 2, second round (2026-11-25) ---- */
-/* Search bar on the left (right after the logo); the account button stays on the right. */
-.topbar-search {
-  margin: 0 auto 0 0;
+/* The place search is at the top of the Analyze tab; the top bar keeps the logo (left) and the
+   account button (right). */
+.app-topbar .account-menu,
+a.account-login {
+  margin-left: auto;
+}
+.panel-search {
+  margin-bottom: var(--s2);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.panel-search .search input {
+  min-height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+.panel-search .search button[type='submit'] {
+  min-height: 38px;
+  background: var(--forest);
+  border-color: var(--forest);
+  color: #fff;
+}
+.panel-search .search-results button {
+  white-space: normal;
 }
 /* "Log in" link (logged out): goes to the separate /login page. */
 a.account-login {

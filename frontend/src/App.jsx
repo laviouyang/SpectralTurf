@@ -281,15 +281,7 @@ export default function App() {
           <Logo size={30} />
           <span className="brand-name">SpectralTurf</span>
         </Link>
-        <div className="topbar-search">
-          <SearchBox
-            onSelect={(target) => {
-              setSearchTarget(target);
-              setSheetOpen(false); // phones: show the map
-              if (target.outsideColorado) setRegionWarning(true);
-            }}
-          />
-        </div>
+        {/* Version 2: the place search moved into the Analyze tab (student request). */}
         {!user ? (
           // Version 2: logging in happens on the separate /login page, not inside the app.
           <Link to="/login" className="account-login">
@@ -420,10 +412,20 @@ export default function App() {
           <div className="panel-scroll" ref={panelScroll}>
             {/* ===== Analyze ===== */}
             <div role="tabpanel" id="tabpanel-analyze" aria-labelledby="tab-analyze" hidden={tab !== 'analyze'}>
+              {/* Version 2: place search at the top of the Analyze tab. */}
+              <div className="panel-search">
+                <SearchBox
+                  onSelect={(target) => {
+                    setSearchTarget(target);
+                    setSheetOpen(false); // phones: show the map
+                    if (target.outsideColorado) setRegionWarning(true);
+                  }}
+                />
+              </div>
               {!polygon ? (
                 <EmptyState icon="draw" title="Draw a field to get started">
                   <ol className="steps">
-                    <li>Search for a park, school, or address in the bar at the top.</li>
+                    <li>Search for a park, school, or address in the search box above.</li>
                     <li>Click the <strong>polygon</strong> (pentagon) or <strong>rectangle</strong> tool on the map, then click around the grass. Click the first point again to finish.</li>
                     <li>Include <strong>only turf</strong>. Leave out pavement and buildings around the field.</li>
                     <li>Dirt infields, tracks, or paths <strong>inside</strong> the field? Cut them out afterwards with the <strong>✂ buttons</strong> on the map.</li>

@@ -24,8 +24,9 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   with a THROWAWAY database (DATABASE_PATH in the scratchpad, deleted after): street map, dates,
   locks, homepage login, AI Weather Check on a saved field (real data), Ask AI on a saved field
   (real Gemini). What-if drop-down not clicked in a browser; no real phone test.
-- VERSION 2, ROUND 2 (2026-11-25, student requests, on `version-2`): search bar on the left of
-  the app top bar; separate /login page (LoginPage.jsx, uses the exported LoginForm) between home
+- VERSION 2, ROUND 2 (2026-11-25, student requests, on `version-2`): place search moved from the
+  top bar to the TOP OF THE ANALYZE TAB (.panel-search; student clarified "under the Analyze tab";
+  top bar = logo + account only; checked in Chrome: search, results list, zoom); separate /login page (LoginPage.jsx, uses the exported LoginForm) between home
   and app - homepage "Try it" / "Open the app" (logged out) and the app's "Log in" go there, with
   "Continue without an account"; SAVING IS SEPARATE: logged-in users get "Save & analyze" (needs
   a name) and "Analyze only (don't save)"; POST /api/analyze new optional `save` (default true =
