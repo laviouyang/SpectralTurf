@@ -35,7 +35,7 @@ export default function FieldPicker({ label, value, onChange, fields, mapAvailab
         </option>
         {fields.map((f) => (
           <option key={f.id} value={String(f.id)}>
-            {f.name || 'Unnamed field'} (saved, image {f.observation_date || 'none'})
+            {f.name || 'Unnamed field'} (saved{f.observation_date ? `, image ${f.observation_date}` : ''})
           </option>
         ))}
       </select>

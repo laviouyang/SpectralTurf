@@ -16,6 +16,9 @@
  * /login page; saving is a separate choice ("Save & analyze" vs "Analyze only") and a name can
  * only be used once (pop-up: replace or not); any address can be searched, with a pop-up when a
  * place is outside Colorado; a note about the background map's date.
+ * Round 3: "Save" and "Analyze" are two separate buttons. Save keeps the outline + excluded areas
+ * under a name in My Fields (no dates, no analysis: POST /api/fields); Analyze never saves.
+ * "Show on map" keeps the current dates, so Analyze works right after it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapView from './MapView.jsx';
@@ -33,7 +36,7 @@ import { Icon, Logo } from './Icons.jsx';
 import { Link, navigate } from './router.jsx';
 import Modal from './Modal.jsx';
 import { OUTSIDE_COLORADO_MESSAGE, isInColorado, polygonCenter } from './region.js';
-import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
+import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut, saveField } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
 // Dates as YYYY-MM-DD in the user's own time zone (Version 2).
@@ -101,7 +104,8 @@ export default function App() {
   // Version 2: pop-ups ("replace the saved field?" and "outside Colorado") and the last saved name.
   const [replaceAsk, setReplaceAsk] = useState(null); // {name, ids} or null
   const [regionWarning, setRegionWarning] = useState(false);
-  const [savedAs, setSavedAs] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   // Layout only (UI redesign): which tab is shown, the account menu, and the panel/sheet.
   const [tab, setTab] = useState('analyze');
@@ -155,12 +159,13 @@ export default function App() {
   }
 
   // Put a saved field back on the map with the same dates, ready to analyze again.
+  // Version 2: the dates are NOT changed (a saved field has no dates), so you can analyze it
+  // right away with the dates already in the Analyze tab.
   function handleShowSaved(item) {
     setEditing(false);
-    setStart(item.start);
-    setEnd(item.end);
     setFieldName(item.name);
     setLoadRequest({ geometry: item.geometry, exclusions: item.exclusions, id: Date.now() });
+    openTab('analyze');
   }
 
   // The picture for the map. useMemo keeps it the same object until the result
@@ -181,6 +186,7 @@ export default function App() {
     setResult(null);
     setError('');
     setLoading(false);
+    setSaveMessage('');
   }, []);
   const handlePolygonChange = useCallback((newPolygon) => {
     setPolygon(newPolygon);
@@ -201,27 +207,16 @@ export default function App() {
   // counted twice, so this is "about"; the backend reports the exact pixel count).
   const excludedM2 = exclusions.reduce((sum, shape) => sum + shape.areaM2, 0);
 
-  // Version 2: save = false for "Analyze" (nothing is saved), true for "Save & analyze".
-  // replaceIds = saved analyses with the same name, deleted only AFTER the new one is saved.
-  async function handleAnalyze(save = false, replaceIds = []) {
+  // Version 2: "Analyze" only looks at the satellite data. It never saves anything.
+  async function handleAnalyze() {
     const thisRequest = ++requestCount.current;
-    const name = fieldName.trim();
     setLoading(true);
     setResult(null);
     setError('');
-    setSavedAs('');
     try {
       const exclude = exclusions.map((shape) => shape.geojson);
-      const data = await analyzeArea(polygon.geojson, exclude, start, end, save ? name : '', Boolean(user && save));
+      const data = await analyzeArea(polygon.geojson, exclude, start, end, '', false);
       if (thisRequest === requestCount.current) setResult(data);
-      if (data.saved_id) {
-        for (const id of replaceIds) {
-          await deleteHistoryItem(id).catch(() => {}); // the replaced, older save(s)
-        }
-        if (thisRequest === requestCount.current) setSavedAs(name);
-        refreshHistory();
-      }
-      if (data.save_error) setHistoryError(`This analysis was not saved: ${data.save_error}`);
     } catch (e) {
       if (thisRequest === requestCount.current) setError(e.message);
     } finally {
@@ -229,12 +224,32 @@ export default function App() {
     }
   }
 
-  // "Save & analyze": a name can only be used once. If it is taken, ask before replacing.
-  function handleSaveAndAnalyze() {
+  // Version 2: "Save" keeps the outline + excluded areas under a name in My Fields.
+  // replaceIds = older saves with the same name, deleted only AFTER the new one is saved.
+  async function doSave(replaceIds = []) {
+    const name = fieldName.trim();
+    setSaving(true);
+    setSaveMessage('');
+    try {
+      await saveField(name, polygon.geojson, exclusions.map((shape) => shape.geojson));
+      for (const id of replaceIds) {
+        await deleteHistoryItem(id).catch(() => {});
+      }
+      setSaveMessage(`✓ Saved to My Fields as “${name}”.`);
+    } catch (e) {
+      setSaveMessage(`Not saved: ${e.message}`);
+    } finally {
+      setSaving(false);
+      refreshHistory();
+    }
+  }
+
+  // A name can only be used once. If it is taken, ask before replacing.
+  function handleSave() {
     const name = fieldName.trim();
     const sameName = history.filter((item) => item.name.trim().toLowerCase() === name.toLowerCase());
     if (sameName.length > 0) setReplaceAsk({ name, ids: sameName.map((item) => item.id) });
-    else handleAnalyze(true);
+    else doSave();
   }
 
   const excludeShapes = exclusions.map((shape) => shape.geojson);
@@ -337,7 +352,7 @@ export default function App() {
                 onClick: () => {
                   const ids = replaceAsk.ids;
                   setReplaceAsk(null);
-                  handleAnalyze(true, ids);
+                  doSave(ids);
                 },
               },
               { label: "Don't replace", secondary: true, onClick: () => setReplaceAsk(null) },
@@ -345,10 +360,10 @@ export default function App() {
           >
             <p>
               You already have a field saved as <strong>“{replaceAsk.name}”</strong>
-              {replaceAsk.ids.length > 1 ? ` (${replaceAsk.ids.length} saved analyses)` : ''}.
+              {replaceAsk.ids.length > 1 ? ` (${replaceAsk.ids.length} saved entries)` : ''}.
             </p>
             <p>
-              Replace it with this new analysis? The old one will be deleted once the new one is saved.
+              Replace it with the field on the map? The old one will be deleted once the new one is saved.
               Or choose “Don&apos;t replace” and type a different name.
             </p>
           </Modal>
@@ -490,6 +505,39 @@ export default function App() {
                         </button>
                       </div>
 
+                      {/* Version 2: Save is separate from Analyze (no dates, no analysis). */}
+                      <div className="save-box">
+                        {user ? (
+                          <>
+                            <label className="field-name">
+                              Field name
+                              <input
+                                value={fieldName}
+                                maxLength={80}
+                                placeholder="e.g. Village Greens north field"
+                                onChange={(e) => setFieldName(e.target.value)}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              className="btn-block"
+                              onClick={handleSave}
+                              disabled={!check.ok || editing || saving || !fieldName.trim()}
+                            >
+                              {saving ? 'Saving…' : 'Save to My Fields'}
+                            </button>
+                            {!fieldName.trim() && <p className="muted">Type a name to save this field.</p>}
+                            {saveMessage && (
+                              <p className={saveMessage.startsWith('✓') ? 'ok' : 'problems'}>{saveMessage}</p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="muted">
+                            <Link to="/login">Log in</Link> to save this field to My Fields.
+                          </p>
+                        )}
+                      </div>
+
                       <div className="exclude-box">
                         <p>
                           <strong>Leave out non-turf parts</strong>
@@ -560,46 +608,11 @@ export default function App() {
                 <p className="muted">
                   The app picks the least-cloudy Sentinel-2 image in this date range.
                 </p>
-                {user ? (
-                  <>
-                    {/* Version 2: saving is a separate choice. */}
-                    <label className="field-name">
-                      Field name (only needed to save it)
-                      <input
-                        value={fieldName}
-                        maxLength={80}
-                        placeholder="e.g. Village Greens north field"
-                        onChange={(e) => setFieldName(e.target.value)}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="btn-block"
-                      onClick={handleSaveAndAnalyze}
-                      disabled={!canAnalyze || !fieldName.trim()}
-                    >
-                      {loading && <Spinner />}
-                      {loading ? 'Analyzing…' : 'Save & analyze'}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary btn-block analyze-only"
-                      onClick={() => handleAnalyze(false)}
-                      disabled={!canAnalyze}
-                    >
-                      Analyze only (don&apos;t save)
-                    </button>
-                    {!fieldName.trim() && polygon && (
-                      <p className="muted">Type a name to save this field, or just analyze it.</p>
-                    )}
-                    {savedAs && result && <p className="ok">✓ Saved as “{savedAs}”.</p>}
-                  </>
-                ) : (
-                  <button type="button" className="btn-block" onClick={() => handleAnalyze(false)} disabled={!canAnalyze}>
-                    {loading && <Spinner />}
-                    {loading ? 'Analyzing…' : 'Analyze'}
-                  </button>
-                )}
+                {/* Version 2: Analyze never saves (saving is the "Save to My Fields" button above). */}
+                <button type="button" className="btn-block" onClick={handleAnalyze} disabled={!canAnalyze}>
+                  {loading && <Spinner />}
+                  {loading ? 'Analyzing…' : 'Analyze'}
+                </button>
                 {!polygon && <p className="muted">Draw an area first.</p>}
                 {editing && <p className="muted">Click Save shape before analyzing.</p>}
                 {loading && (
@@ -658,14 +671,11 @@ export default function App() {
                   <Panel id="v2-ranking" title="AI priority ranking" defaultOpen>
                     <MyFields user={user} onShow={handleShowSaved} />
                   </Panel>
-                  <Panel id="v2-saved" title="Saved analyses" defaultOpen status={`${history.length}`}>
+                  <Panel id="v2-saved" title="Saved fields" defaultOpen status={`${history.length}`}>
                     <SavedAnalyses
                       history={history}
                       historyError={historyError}
-                      onShow={(item) => {
-                        handleShowSaved(item);
-                        openTab('analyze');
-                      }}
+                      onShow={handleShowSaved}
                       onDelete={handleDelete}
                     />
                   </Panel>

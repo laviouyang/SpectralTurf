@@ -580,3 +580,9 @@ button.analyze-only {
     max-width: 62%;
   }
 }
+/* Version 2, round 3: the "Save to My Fields" box in the Your field card */
+.save-box {
+  margin-top: var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+}

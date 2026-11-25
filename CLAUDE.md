@@ -43,10 +43,24 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   left, outside-CO pop-up (Central Park NY), Analyze only saves nothing, Save & analyze ->
   replace pop-up -> old entry deleted, new real result saved (Grass B box NDVI median 0.777,
   image 2026-08-05), AI Check numbering, logged-out "Log in" -> /login.
+- VERSION 2, ROUND 3 (2026-11-25, student request) - REPLACES round 2's "Save & analyze":
+  two separate buttons. "Save to My Fields" (in the Your field card; needs a name; no dates, no
+  analysis) -> NEW POST /api/fields {name, geometry, exclude} (login) -> NEW backend/saved_fields.py
+  inserts into saved_analyses with start/end/observation_date "" and summary
+  {"status": "not_analyzed"} (NO numbers; accounts.py unchanged). Same-name -> replace pop-up
+  (deletes old after the new save). "Analyze" (Satellite analysis card) NEVER saves (sends
+  save:false). "Show on map" no longer changes the dates and switches to the Analyze tab, so
+  Analyze works right after it. assistant.saved_facts returns "saved outline only / not_analyzed"
+  (no numbers) for such rows; HistoryItem shows "Saved field · not analyzed yet"; "Saved
+  analyses" panel renamed "Saved fields". Tests backend/test_save_field.py 8/8. Checked in Chrome
+  on SEPARATE ports (backend 8001 with a throwaway DB + VITE_API_URL vite on 5175, because the
+  student's own servers were running on 8000/5173): draw -> Save (no numbers stored) -> Clear ->
+  My Fields -> Show on map -> Analyze (real image 2026-11-20, Insufficient evidence; nothing
+  saved) -> Save same name -> replace pop-up -> old row deleted.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
-  test_assistant 48, test_limits 23, test_ask_focus 15 + test_analyze_save 4 (version-2 only),
+  test_assistant 48, test_limits 23, test_ask_focus 15 + test_analyze_save 4 + test_save_field 8 (version-2 only),
   ml get_fields 20,
   ndvi_history 11, weather 6, dataset_and_model 15, dataset_v3 13; frontend builds.
 
@@ -55,7 +69,7 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
 cd backend
 python test_indices.py; python test_accounts.py; python test_predict.py
 python test_assistant.py; python test_limits.py
-python test_ask_focus.py; python test_analyze_save.py   # version-2 branch only
+python test_ask_focus.py; python test_analyze_save.py; python test_save_field.py   # version-2 only
 cd ..
 python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
 python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py
@@ -98,6 +112,9 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
 - `backend/.env` holds CDSE_CLIENT_ID, CDSE_CLIENT_SECRET, GEMINI_API_KEY (optional GEMINI_MODEL).
   `python check_keys.py` (in backend) checks them without printing them.
 - If the backend isn't running, the Vite proxy makes every request show "HTTP 500".
+- If the student's own servers are running (8000/5173), test on other ports: backend
+  `--port 8001` with FRONTEND_ORIGINS + DATABASE_PATH (throwaway), and
+  `VITE_API_URL=http://localhost:8001 npx.cmd vite --port 5175` -> http://[::1]:5175.
 - Browser testing (Claude in Chrome): the student's Chrome is logged in to a local account at
   localhost:5173. To test as a visitor without touching their account/history, use
   http://[::1]:5173 (separate browser storage; 127.0.0.1 does not reach the Vite dev server).

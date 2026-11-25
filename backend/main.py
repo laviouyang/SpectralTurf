@@ -12,6 +12,7 @@ Endpoints:
   GET  /api/ai/what-if/limits, POST /api/ai/what-if -> Step 9: "What if?" weather scenarios
   POST /api/ai/weather-check  -> Steps 6-7: AI Weather Check for the field on the map
   POST /api/ai/ask            -> Step 10: "Ask SpectralTurf" AI assistant (Gemini + read-only tools)
+  POST /api/fields            -> Version 2: save a field to My Fields WITHOUT analyzing it (login)
 
 Public-website safety limits (login lockout, daily caps) are at the end of this file
 (backend/limits.py); they are only on when deployed (Render) or with USAGE_LIMITS=on.
@@ -36,6 +37,7 @@ import assistant
 import indices
 import predict
 import render
+import saved_fields
 import sentinel
 
 # Load CDSE_CLIENT_ID and CDSE_CLIENT_SECRET from the .env file.
@@ -266,6 +268,27 @@ def delete_history_item(analysis_id: int, user=Depends(required_user), db=Depend
     if not accounts.delete_analysis(db, user["id"], analysis_id):
         raise HTTPException(status_code=404, detail="That saved analysis was not found.")
     return {"status": "deleted"}
+
+
+# Version 2 (2026-11-25): "Save" and "Analyze" are separate buttons. Saving keeps only the
+# outline, excluded areas and name (no satellite numbers - nothing was measured).
+class SaveFieldRequest(BaseModel):
+    name: str = Field(..., max_length=200, description="The field's name in My Fields")
+    geometry: dict = Field(..., description="GeoJSON Polygon, same rules as /api/analyze")
+    exclude: list[dict] = Field(default_factory=list, description="Excluded areas inside the outline")
+
+
+@app.post("/api/fields")
+def save_field(body: SaveFieldRequest, user=Depends(required_user), db=Depends(get_db)):
+    geometry = clean_polygon(body.geometry)
+    if len(body.exclude) > MAX_EXCLUDED_AREAS:
+        raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
+    exclusions = [clean_polygon(shape) for shape in body.exclude]
+    try:
+        saved_id = saved_fields.save_field(db, user["id"], body.name, geometry, exclusions)
+    except accounts.AccountError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "saved", "saved_id": saved_id}
 
 
 @app.get("/api/test/truecolor")

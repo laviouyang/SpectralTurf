@@ -255,6 +255,10 @@ def analysis_facts(result):
 def saved_facts(item):
     """One saved analysis (summary only; the backend computed it when it was saved)."""
     s = item["summary"]
+    if s.get("status") == "not_analyzed":  # Version 2: saved with "Save" only, no measurement
+        return {"kind": "saved outline only", "status": "not_analyzed",
+                "explanation": "This field was saved without an analysis, so there are no saved measurements. "
+                        "Use the satellite history or the AI weather check for numbers."}
     facts = {
         "kind": "observation",
         "image_date": item["observation_date"],

@@ -93,6 +93,23 @@ export function LoginForm({ onUserChange }) {
 
 function HistoryItem({ item, onShow, onDelete }) {
   const s = item.summary;
+  // Version 2: a field saved with "Save to My Fields" has no analysis (and no numbers).
+  if (s.status === 'not_analyzed') {
+    return (
+      <li className="history-item">
+        <strong>{item.name}</strong>
+        <span className="muted">Saved field · not analyzed yet (press Show on map, then Analyze)</span>
+        <div className="button-row">
+          <button type="button" className="secondary" onClick={() => onShow(item)}>
+            Show on map
+          </button>
+          <button type="button" className="link-button" onClick={() => onDelete(item)}>
+            Delete
+          </button>
+        </div>
+      </li>
+    );
+  }
   const stats = s.status === 'ok'
     ? `NDVI ${s.ndvi_median ?? '–'} · NDMI ${s.ndmi_median ?? '–'}`
     : 'Not enough clear pixels';
@@ -126,7 +143,7 @@ export default function AccountPanel({ user, onUserChange, onLogOut, history, hi
           Log out
         </button>
       </p>
-      <p className="muted">Fields you save with “Save &amp; analyze” are listed here.</p>
+      <p className="muted">Fields you save with “Save to My Fields” are listed here.</p>
       {historyError && <p className="problems-box">{historyError}</p>}
       {history.length === 0 ? (
         <p className="muted">No saved analyses yet.</p>
@@ -151,7 +168,7 @@ export function SavedAnalyses({ history, historyError, onShow, onDelete }) {
     <div>
       {historyError && <p className="problems-box">{historyError}</p>}
       {history.length === 0 ? (
-        <p className="muted">No saved analyses yet. Draw a field, give it a name and click “Save &amp; analyze”.</p>
+        <p className="muted">No saved fields yet. Draw a field, give it a name and click “Save to My Fields”.</p>
       ) : (
         <ul className="history-list">
           {history.map((item) => (

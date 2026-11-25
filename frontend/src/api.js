@@ -72,6 +72,11 @@ export function analyzeArea(geometry, exclude, start, end, name = '', save = tru
   return request('/api/analyze', { method: 'POST', body: { geometry, exclude, start, end, name, save } });
 }
 
+// Version 2: save a field (outline + excluded areas + name) to My Fields WITHOUT analyzing it.
+export function saveField(name, geometry, exclude) {
+  return request('/api/fields', { method: 'POST', body: { name, geometry, exclude } });
+}
+
 // ---- Accounts ----
 
 export async function signUp(username, password) {
