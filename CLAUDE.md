@@ -1,8 +1,43 @@
 # SpectralTurf AI — project context for Claude Code
 
-High school project for the **Congressional App Challenge**, deadline **October 26, 2026**.
+High school project, first for the **Congressional App Challenge** (deadline October 26, 2026,
+passed), now extended for **WAICY** (due **November 29, 2026**). Author: Yuanzhi (Lavi) Ouyang.
 The student must be able to explain every major part to judges, so keep code simple,
-beginner-readable, and scientifically honest. Do not overengineer.
+beginner-readable, and scientifically honest. Do not overengineer. Explain things simply.
+
+## Current status (updated 2026-11-25) — read this first in a new conversation
+- Branch `main` (GitHub, pushed 2026-11-22, commit 71840e5): everything up to Render deploy prep.
+- Branch `ui-redesign` (on GitHub; redesign commit 37b050d + notes updates): new homepage,
+  /about page and redesigned map app. **NOT merged — the student must approve before merging into
+  main.** Never merge it without being asked.
+- Render: prepared (render.yaml, docs/DEPLOY_RENDER.md) but **NOT deployed**. The student deploys
+  it themselves; Claude must not deploy.
+- Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of the
+  redesign; real-phone test; Render deploy by the student.
+- All tests passed on 2026-11-23 (both branches): test_indices, test_accounts 16, test_predict 58,
+  test_assistant 48, test_limits 23, ml get_fields 20, ndvi_history 11, weather 6,
+  dataset_and_model 15, dataset_v3 13; frontend builds.
+
+## How to run all tests
+```
+cd backend
+python test_indices.py; python test_accounts.py; python test_predict.py
+python test_assistant.py; python test_limits.py
+cd ..
+python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
+python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py
+cd frontend; npm.cmd run build
+```
+(Git Bash: set PYTHONIOENCODING=utf-8 first, or printing can crash on this PC's GBK encoding.)
+
+## Working rules the student set (still apply)
+- ADD-ON ONLY (Stage 10 section below): never rename/rewrite/move/delete existing functions,
+  endpoints, components or tests; new code in new files; accounts stay unchanged (read only).
+- Commit before and after each step; run all tests; tell the student what changed, the exact
+  test command, what success looks like, and what is still unverified.
+- Never open, print or commit `backend/.env`. Scratch scripts load it with `load_dotenv('.env')`.
+- Ask before pushing to GitHub, merging, deploying, or anything outward-facing.
+- Never invent numbers, statistics, testimonials or results; cite sources.
 
 Full original requirements: `docs/PROJECT_SPEC.md` — read it before starting new stages.
 
@@ -27,6 +62,13 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
   `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` then `venv\Scripts\activate`
 - Run server: `cd backend` → `uvicorn main:app --reload` → http://localhost:8000/docs
 - Test area: **Village Greens** sports complex (Greenwood Village, CO area).
+- `backend/.env` holds CDSE_CLIENT_ID, CDSE_CLIENT_SECRET, GEMINI_API_KEY (optional GEMINI_MODEL).
+  `python check_keys.py` (in backend) checks them without printing them.
+- If the backend isn't running, the Vite proxy makes every request show "HTTP 500".
+- Browser testing (Claude in Chrome): the student's Chrome is logged in to a local account at
+  localhost:5173. To test as a visitor without touching their account/history, use
+  http://[::1]:5173 (separate browser storage; 127.0.0.1 does not reach the Vite dev server).
+  The Chrome window can't be resized; test phone layouts in a 390 px iframe instead.
 
 ## Architecture
 - `backend/` — Python FastAPI
@@ -37,7 +79,10 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
     Output size is computed for 10 m pixels from the bbox (cos(latitude) correction), max 500 px/side.
   - `indices.py` — pure numpy math: NDVI, NDMI, SCL cloud/shadow masking, stats,
     insufficient-evidence rule. No network. Tested by `test_indices.py`.
-  - `main.py` — endpoints:
+  - Later files: `render.py` (map pictures), `accounts.py` (Stage 9), `predict.py` (Stage 10 AI
+    checks), `assistant.py` (Ask SpectralTurf, Gemini), `limits.py` (public-site limits),
+    `check_keys.py`. Full endpoint list: docstring at the top of `main.py`.
+  - `main.py` — endpoints (original ones below; see the main.py docstring for all):
     - `GET /api/health`
     - `POST /api/analyze` {geometry (GeoJSON Polygon), start, end, max_cloud} → same JSON stats,
       for the drawn polygon only. Used by the website.
@@ -46,7 +91,13 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
       fetches raw FLOAT32 TIFF of B04,B08,B8A,B11,SCL,dataMask for that day, returns JSON stats
 - `frontend/` — Vite + React 18 + Leaflet + leaflet-draw. Run: `cd frontend` → `npm.cmd run dev`
   → http://localhost:5173 (use `npm.cmd`, or set the execution policy, since `npm` is a blocked .ps1).
-  Files: App.jsx, MapView.jsx, SearchBox.jsx, polygonCheck.js, api.js, Results.jsx, leafletSetup.js.
+  Files (main): App.jsx, MapView.jsx, SearchBox.jsx, polygonCheck.js, api.js, Results.jsx,
+  leafletSetup.js, AccountPanel.jsx, AIWeatherCheck.jsx, MyFields.jsx, WhatIf.jsx,
+  AskSpectralTurf.jsx, ChatExtras.jsx, Panel.jsx, App.css.
+  Extra on `ui-redesign`: router.jsx, Site.jsx, HomePage.jsx, AboutPage.jsx, SiteChrome.jsx,
+  AppChrome.jsx, Icons.jsx, previewFacts.json, theme.css, site.css, appshell.css, public/logo.svg,
+  public/preview/*.png.
+- `ml/` — Stage 10 data, training and evaluation (see Stage 10 below).
 
 ## Science decisions already made
 - NDVI = (B08−B04)/(B08+B04); NDMI = (B8A−B11)/(B8A+B11); |denominator| < 1e-6 → NaN.
@@ -224,9 +275,7 @@ ADD-ON ONLY — do not replace anything:
   off-season; the AI panel just shows its own message.
 - The optional accounts system (login, sessions, saved history, `spectralturf.db`, and
   `test_accounts.py`) must keep working unchanged. New features may only READ saved fields.
-- Tests to run after every step: `cd backend` → `python test_indices.py`,
-  `python test_accounts.py`, plus every new Stage 10 test (so far: `python ml/test_get_fields.py`
-  from the project folder).
+- Tests to run after every step: all of them (see "How to run all tests" at the top).
 - If a step seems to require changing existing behavior, stop and ask the student first.
 
 Non-negotiable rules for this stage:
@@ -253,7 +302,7 @@ Steps (details in the plan doc):
   in backend/.env; tools = list_my_fields, get_saved_analysis, weather_check, rank_my_fields,
   what_if; answers only from tool results, mention image date + data quality, never prescribe
   watering or diagnose, own data only, rate limits) · 11 README, slides, demo.
-  Student said: STOP before building Steps 8–10 and wait for their go-ahead.
+  (Steps 8–10 were later built with the student's go-ahead; only Step 11 remains.)
 
 Progress:
 - [x] Step 1 — Field outlines (2026-11-01). STUDENT DECISION: AI must work on ANY grass field,
@@ -367,7 +416,11 @@ Progress:
       one retry, else "blocked". Limits: 500 chars, 5/min per user (or IP), 300/day server,
       6 tool rounds. Each question answered on its own (no chat memory). POST /api/ai/ask
       (503 friendly message on key/Gemini problems). Frontend AskSpectralTurf.jsx = sidebar
-      "7. Ask SpectralTurf — AI assistant". Tests backend/test_assistant.py (fake Gemini, 39/39).
+      "7. Ask SpectralTurf — AI assistant". Tests backend/test_assistant.py (fake Gemini; 39 at
+      first, 48 after the photo tests).
+      CHECK (student request): all tests passed; key loads without being printed (only sent in the
+      x-goog-api-key header; .env not in git); ownership audit = 960 tool calls over 8 user/visitor
+      situations, no tool ever returned another user's field. No failures.
       Real Gemini check (visitor, Village Greens turf, as of 2026-08-15): presets answered with
       numbers matching the tools; watering/disease question refused. Not yet clicked in a browser.
       2026-11-22 (student request): COLLAPSIBLE SIDEBAR — new Panel.jsx (<details>) wraps every
@@ -416,4 +469,16 @@ Progress:
 ## Known gaps / TODO
 - Overlay drawn as lon/lat-grid image on Web Mercator map: fine for field-sized areas, slight
   stretch possible near the 5 km max.
-- GitHub: https://github.com/laviouyang/SpectralTurf (pushed 2026-10-14). Handoff summary: `docs/HANDOFF.md`.
+- GitHub: https://github.com/laviouyang/SpectralTurf. `main` pushed 2026-11-22; `ui-redesign`
+  is on GitHub too (see "Current status"). Older handoff summary: `docs/HANDOFF.md` (may be out of
+  date; CLAUDE.md is the up-to-date record).
+- Render deploy not yet done; unverified there: staticPublishPath relative to rootDir, rewrite of
+  POST/large photo bodies, Python 3.13.14 availability. Esri basemap terms for a public site
+  unverified.
+- Gemini free tier: Google may use what is sent to improve its products (the chat panel warns).
+- Redesign: when searching a place, the map centers on the full screen, so part of the field can
+  sit under the floating panel. Polygon drawing, exclusions and logged-in flows were not clicked
+  through in the new layout; no real phone test.
+- Homepage stats wording is deliberate: 740,000 acre-feet is the UPPER end of a per-year municipal
+  & industrial range (2023 Colorado Water Plan); ~5,500 Denver Water reports is as of mid-August
+  2026 (Axios, Aug 14 2026), not a full-summer total; EPA WaterSense "up to 50%" not re-opened.
