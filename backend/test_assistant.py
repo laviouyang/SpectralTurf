@@ -261,19 +261,21 @@ with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as folder:
     main.app.dependency_overrides[main.get_db] = test_db
     client = TestClient(main.app)
     assistant.limiter = assistant.RateLimiter()
-    r = client.post("/api/ai/ask", json={"question": "Hi", "as_of": "2026-08-15"})
+    auth_a = {"Authorization": f"Bearer {token_a}"}  # login required since 2026-11-25 (Version 2)
+    r = client.post("/api/ai/ask", json={"question": "Hi", "as_of": "2026-08-15"}, headers=auth_a)
     check("29. endpoint without a key: friendly 503", r.status_code == 503 and r.json()["detail"] == assistant.NOT_SET_UP)
     check("30. the rest of the app still works (health)", client.get("/api/health").json() == {"status": "ok"})
     predict.weather_check = real_weather_check  # the real one (off-season answers without downloading)
-    r = client.post("/api/ai/weather-check", json={"geometry": SCREEN, "as_of": "2026-01-15"})
+    r = client.post("/api/ai/weather-check", json={"geometry": SCREEN, "as_of": "2026-01-15"}, headers=auth_a)
     predict.weather_check = fake_weather_check
     check("31. the rest of the app still works (AI weather check)", r.status_code == 200
           and r.json()["status"] == "off_season")
     check("32. the rest of the app still works (analyze still validates input)",
           client.post("/api/analyze", json={"geometry": {"type": "Point"}}).status_code == 400)
     check("33. too-long question -> 400",
-          client.post("/api/ai/ask", json={"question": "x" * 501}).status_code == 400)
-    check("34. empty question -> 400", client.post("/api/ai/ask", json={"question": "  "}).status_code == 400)
+          client.post("/api/ai/ask", json={"question": "x" * 501}, headers=auth_a).status_code == 400)
+    check("34. empty question -> 400",
+          client.post("/api/ai/ask", json={"question": "  "}, headers=auth_a).status_code == 400)
 
     fake = FakeGemini(tool_call("get_my_fields"), text("You have field-1 and field-2. Confirm in person."))
     assistant.call_gemini = fake
@@ -286,7 +288,7 @@ with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as folder:
           r.json()["label"] == "AI-generated explanation based on SpectralTurf data. Confirm in person.")
     assistant.limiter = assistant.RateLimiter(per_minute=2)
     assistant.call_gemini = lambda contents: text("Not enough data.")
-    codes = [client.post("/api/ai/ask", json={"question": "Hi", "as_of": "2026-08-15"}).status_code
+    codes = [client.post("/api/ai/ask", json={"question": "Hi", "as_of": "2026-08-15"}, headers=auth_a).status_code
              for _ in range(3)]
     check("37. endpoint rate limit -> 429 with a message", codes == [200, 200, 429])
     main.app.dependency_overrides.clear()
@@ -342,7 +344,10 @@ check("45. saying it CAN'T identify diseases is fine",
       assistant.ask("What is it?", visitor, photo="QUJD", call=FakeGemini(
           text("I can't identify diseases from a photo. Check the brown area in person.")))["status"] == "ok")
 assistant.limiter = assistant.RateLimiter()
+main.app.dependency_overrides[main.required_user] = lambda: {"id": 1, "username": "photo_tester"}  # login required since 2026-11-25 (Version 2)
+main.app.dependency_overrides[main.get_db] = lambda: accounts.connect(":memory:")  # never the real database
 r = TestClient(main.app).post("/api/ai/ask", json={"question": "Hi", "photo": base64.b64encode(b"nope").decode()})
+main.app.dependency_overrides.clear()
 check("46. endpoint: a bad photo -> 400 with a friendly message", r.status_code == 400 and "photo" in r.json()["detail"])
 
 print(f"\nAll {passed} assistant tests passed.")

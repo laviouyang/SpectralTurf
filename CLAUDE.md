@@ -8,14 +8,18 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
 ## Current status (updated 2026-11-25, later) — read this first in a new conversation
 - Branch `main` (GitHub, pushed 2026-11-22, commit 71840e5): everything up to Render deploy prep.
 - Branch `version-2` (= the old `ui-redesign`, renamed LOCALLY 2026-11-25 at the student's
-  request; GitHub still has it as `ui-redesign` until the student approves a push): new homepage,
+  request; it tracks GitHub's `ui-redesign`, which the STUDENT pushed on 2026-11-25 up to a15cc79;
+  the GitHub name was not changed): new homepage,
   /about page, redesigned map app + the Version 2 changes below. **NOT merged — the student must
   approve before merging into main.** Never merge it without being asked.
 - Render: the student DEPLOYED it themselves (told Claude 2026-11-25). Claude must not deploy.
 - VERSION 2 CHANGES (2026-11-25, student requests, on `version-2`): homepage nav shows
   "Logged in as <name>" (SiteChrome.jsx calls currentUser); map starts on the OSM street map;
-  My Fields / AI Check / Ask AI need an account (frontend lock + 🔒 on tabs; the backend AI
-  endpoints still accept visitors); dates default To = yesterday, From = To − 14 days; moving
+  My Fields / AI Check / Ask AI need an account (frontend lock + 🔒 on tabs; since 2026-11-25
+  the backend ALSO requires login: POST /api/ai/weather-check, /api/ai/what-if, /api/ai/ask use
+  required_user -> 401 "Please log in first." for visitors; GET /api/ai/what-if/limits stays public;
+  tests backend/test_ai_login.py 12/12; existing tests given a login where they tested other
+  things, test_predict 56 renamed "works when logged in", test_limits 17 now expects visitor 401); dates default To = yesterday, From = To − 14 days; moving
   From past To moves To to the same day, moving To before From moves From to 14 days before;
   FieldPicker.jsx (new) = drop-down of "Field on the map" + distinct saved fields for AI Weather
   Check, What if? and Ask AI; Ask AI requires picking ONE field first -> POST /api/ai/ask
@@ -75,6 +79,7 @@ cd backend
 python test_indices.py; python test_accounts.py; python test_predict.py
 python test_assistant.py; python test_limits.py
 python test_ask_focus.py; python test_analyze_save.py; python test_save_field.py   # version-2 only
+python test_ai_login.py   # version-2 only
 cd ..
 python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
 python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py

@@ -217,6 +217,8 @@ check("30. slider limits come from the training ranges", limits["rain_mm"] == [0
 response = client.post("/api/ai/what-if", json={"dry_days": 3, "rain_mm": 0, "avg_high_c": 30,
                                                "include_my_fields": True})
 check("31. what-if for My Fields without logging in -> 401", response.status_code == 401)
+# Login required since 2026-11-25 (Version 2): the endpoint checks below run as a fake logged-in user.
+main.app.dependency_overrides[main.required_user] = lambda: {"id": 1, "username": "predict_tester"}
 response = client.post("/api/ai/what-if", json={"dry_days": 14, "rain_mm": 5, "avg_high_c": 30})
 check("32. what-if endpoint refuses 14 dry days + rain (400)", response.status_code == 400)
 
@@ -343,7 +345,7 @@ predict.load_model = lambda: fake_bundle
 r = predict.weather_check(field, [], date(2025, 7, 20))
 check("55. older (version 2) model -> no cloudy estimate", r["cloudy_estimate"] is None)
 response = client.post("/api/ai/weather-check", json={"geometry": field, "as_of": "2025-07-20"})
-check("56. POST /api/ai/weather-check works without logging in", response.status_code == 200
+check("56. POST /api/ai/weather-check works when logged in", response.status_code == 200
       and response.json()["status"] == "ok")
 response = client.post("/api/ai/weather-check", json={"geometry": field, "as_of": "2025-12-01"})
 check("57. weather-check endpoint off-season -> 'Off-season' message",
@@ -352,5 +354,6 @@ bad = {"type": "Polygon", "coordinates": [[[-104.88, 39.63], [-104.879, 39.63], 
 response = client.post("/api/ai/weather-check", json={"geometry": bad})
 check("58. weather-check endpoint rejects a broken outline (400), like /api/analyze",
       response.status_code == 400)
+main.app.dependency_overrides.pop(main.required_user, None)
 
 print(f"\nAll {passed} predict tests passed.")

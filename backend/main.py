@@ -9,9 +9,9 @@ Endpoints:
   POST /api/auth/signup, /api/auth/login, /api/auth/logout, GET /api/auth/me -> accounts
   GET  /api/history, DELETE /api/history/{id} -> a logged-in user's saved analyses
   POST /api/ai/my-fields      -> Stage 10 Step 8: the user's saved fields ranked by the AI check
-  GET  /api/ai/what-if/limits, POST /api/ai/what-if -> Step 9: "What if?" weather scenarios
-  POST /api/ai/weather-check  -> Steps 6-7: AI Weather Check for the field on the map
-  POST /api/ai/ask            -> Step 10: "Ask SpectralTurf" AI assistant (Gemini + read-only tools)
+  GET  /api/ai/what-if/limits, POST /api/ai/what-if -> Step 9: "What if?" weather scenarios (POST: login)
+  POST /api/ai/weather-check  -> Steps 6-7: AI Weather Check for the field on the map (login)
+  POST /api/ai/ask            -> Step 10: "Ask SpectralTurf" AI assistant (Gemini + read-only tools) (login)
   POST /api/fields            -> Version 2: save a field to My Fields WITHOUT analyzing it (login)
 
 Public-website safety limits (login lockout, daily caps) are at the end of this file
@@ -379,8 +379,9 @@ class WhatIfRequest(BaseModel):
 
 
 @app.post("/api/ai/what-if")
-def what_if(body: WhatIfRequest, user=Depends(current_user), db=Depends(get_db)):
-    """Step 9: run the trained model with the user's made-up weather. Only READS saved fields."""
+def what_if(body: WhatIfRequest, user=Depends(required_user), db=Depends(get_db)):
+    """Step 9: run the trained model with the user's made-up weather. Only READS saved fields.
+    Login required since 2026-11-25 (Version 2), like the website's AI Check tab."""
     check_as_of(body.as_of)
     if body.dry_days >= predict.WHAT_IF_DAYS and body.rain_mm > 0:
         raise HTTPException(status_code=400, detail=f"With {predict.WHAT_IF_DAYS} days without rain, "
@@ -418,9 +419,10 @@ class WeatherCheckRequest(BaseModel):
 
 
 @app.post("/api/ai/weather-check")
-def weather_check(body: WeatherCheckRequest):
+def weather_check(body: WeatherCheckRequest, user=Depends(required_user)):
     """Expected vs actual NDVI for the latest clear image, next-week risk, and (when there has
-    been no clear image for 7+ days) the AI's cloudy-day estimate. Uses no account data."""
+    been no clear image for 7+ days) the AI's cloudy-day estimate. Uses no account data.
+    Login required since 2026-11-25 (Version 2), like the website's AI Check tab."""
     check_as_of(body.as_of)
     geometry = clean_polygon(body.geometry)
     if len(body.exclude) > MAX_EXCLUDED_AREAS:
@@ -453,10 +455,11 @@ class AskRequest(BaseModel):
 
 
 @app.post("/api/ai/ask")
-def ask(body: AskRequest, request: Request, user=Depends(current_user), db=Depends(get_db)):
-    """Answer a question with Gemini + read-only tools. Logged in: the user's OWN saved fields
-    (read only) + the field on screen. Visitor: only the field on screen. Gemini never gets the
-    username or the field names. Problems give a friendly 503; the rest of the app is unaffected."""
+def ask(body: AskRequest, request: Request, user=Depends(required_user), db=Depends(get_db)):
+    """Answer a question with Gemini + read-only tools: the user's OWN saved fields (read only)
+    + the field on screen. Login required since 2026-11-25 (Version 2), like the website's Ask AI
+    tab (visitors get 401). Gemini never gets the username or the field names. Problems give a
+    friendly 503; the rest of the app is unaffected."""
     question = body.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Please type a question.")

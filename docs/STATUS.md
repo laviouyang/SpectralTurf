@@ -17,7 +17,7 @@ diagnoses disease or gives watering instructions).
 |---|---|---|---|
 | `main` | local + GitHub (`origin/main`), in sync | `30bc53c` (2026-11-25) CLAUDE.md notes | Old single-sidebar UI. Everything up to Render deploy prep (`71840e5`) + one CLAUDE.md notes commit. |
 | `version-2` (local name) | local; **tracks `origin/ui-redesign`** on GitHub | `c7a4e74` (2026-11-25) | = the former `ui-redesign` branch, renamed locally at the student's request. Redesigned website + all "Version 2" changes. |
-| `origin/ui-redesign` | GitHub | `7777089` (2026-11-25) | GitHub name of the same branch. **Behind local `version-2`** (missing all Version 2 changes and this report) until `version-2` is pushed to it. |
+| `origin/ui-redesign` | GitHub | `a15cc79` (2026-11-25) | GitHub name of the same branch. The student pushed `version-2` to it on 2026-11-25 (fast-forward). Later local commits are not on GitHub until pushed again. |
 | `us-expansion` | — | — | **Does not exist** (not local, not on GitHub). The homepage only has a "coming soon" state picker. |
 
 Current branch: **`version-2`**.
@@ -71,7 +71,7 @@ no assistant should merge without being asked.
 - Both — What if? weather scenario sliders (limits from training data and the month). V2: "2." in the AI Check tab, with a field drop-down.
 - Both — My Fields AI ranking ("check these first").
 - Both — Ask SpectralTurf (Gemini) with photo upload, voice typing, read aloud. V2: you must pick ONE field first; all answers are about that field.
-- V2 — My Fields, AI Check and Ask AI tabs need an account (🔒 shown for visitors). This lock is in the website only; the backend AI endpoints still accept visitors.
+- V2 — My Fields, AI Check and Ask AI tabs need an account (🔒 shown for visitors). Since 2026-11-25 the backend also requires login for POST /api/ai/weather-check, /api/ai/what-if and /api/ai/ask (401 for visitors).
 - Both — Off-season message outside April–October.
 
 ---
@@ -163,6 +163,7 @@ no assistant should merge without being asked.
 | backend/test_ask_focus.py (V2) | 15/15 pass |
 | backend/test_analyze_save.py (V2) | 4/4 pass |
 | backend/test_save_field.py (V2) | 8/8 pass |
+| backend/test_ai_login.py (V2, added after this report's first version) | 12/12 pass |
 | ml/test_get_fields.py | 20/20 pass |
 | ml/test_get_ndvi_history.py | 11/11 pass |
 | ml/test_get_weather.py | 6/6 pass |
@@ -195,7 +196,6 @@ Frontend: `npm.cmd run build` **succeeds**. How to run everything: see "How to r
 
 - `version-2` is not merged into `main`, and is still named `ui-redesign` on GitHub.
 - Unknown which branch Render deploys, and whether the live backend URL matches the rewrite in render.yaml.
-- The "account needed" lock for the AI tabs is only in the website; the backend AI endpoints still accept visitors.
 - "No duplicate names" is only checked in the website, not in the backend.
 - A field saved without an analysis has no stored numbers; Ask AI can still use the weather check / satellite history for it.
 - When searching a place, the map centers on the whole screen, so part of the field can sit under the floating panel.
