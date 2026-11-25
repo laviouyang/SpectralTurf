@@ -3,18 +3,21 @@
  *   "/"      -> HomePage (landing page)
  *   "/app"   -> App (the map tool; everything it does is unchanged)
  *   "/about" -> AboutPage (methodology)
+ *   "/login" -> LoginPage (Version 2: log in / sign up, between the homepage and the app)
  */
 import { useEffect } from 'react';
 import { Link, useLocation } from './router.jsx';
 import App from './App.jsx';
 import HomePage from './HomePage.jsx';
 import AboutPage from './AboutPage.jsx';
+import LoginPage from './LoginPage.jsx';
 import { SiteFooter, SiteNav } from './SiteChrome.jsx';
 
 const TITLES = {
   '/': 'SpectralTurf: satellite + AI turf inspection priority',
   '/app': 'SpectralTurf app',
   '/about': 'About SpectralTurf',
+  '/login': 'Log in · SpectralTurf',
 };
 
 function NotFound() {
@@ -41,5 +44,6 @@ export default function Site() {
   if (path === '/') return <HomePage />;
   if (path === '/app') return <App />;
   if (path === '/about') return <AboutPage />;
+  if (path === '/login') return <LoginPage />;
   return <NotFound />;
 }

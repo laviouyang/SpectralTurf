@@ -195,6 +195,9 @@ class AnalyzeRequest(BaseModel):
         description="GeoJSON Polygons inside the outline that are not turf (e.g. dirt infields)",
     )
     name: str = Field("", max_length=200, description="Field name for the history (logged-in users)")
+    # Added 2026-11-25 (Version 2): saving is now a separate choice ("Save & analyze" vs
+    # "Analyze"). The website always sends it; leaving it out keeps the old behavior (save).
+    save: bool = Field(True, description="Logged in: save a summary of this result to your history")
 
 
 @app.post("/api/analyze")
@@ -205,9 +208,9 @@ def analyze(request: AnalyzeRequest, user=Depends(current_user), db=Depends(get_
     exclusions = [clean_polygon(shape) for shape in request.exclude]
     result = run_analysis(geometry, request.start, request.end, request.max_cloud, exclusions)
 
-    # Logged in? Save a summary of this real result to the user's history.
+    # Logged in and asked to save ("Save & analyze")? Save a summary of this real result.
     # Saving problems never hide the analysis itself.
-    if user:
+    if user and request.save:
         try:
             result["saved_id"] = accounts.save_analysis(
                 db, user["id"], request.name, geometry, exclusions, request.start, request.end, result

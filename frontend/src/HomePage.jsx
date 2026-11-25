@@ -13,6 +13,33 @@ import { Link } from './router.jsx';
 import { Icon } from './Icons.jsx';
 import { SiteFooter, SiteNav } from './SiteChrome.jsx';
 import facts from './previewFacts.json';
+import { AVAILABLE_STATE, US_STATES } from './region.js';
+
+// Version 2 (2026-11-25): "Which state are you in?" Only Colorado works today; the rest say
+// "coming soon", because the AI has only been trained on Colorado fields.
+function StatePicker() {
+  const [state, setState] = useState(AVAILABLE_STATE);
+  return (
+    <div className="state-picker">
+      <label>
+        Which state are your fields in?
+        <select value={state} onChange={(e) => setState(e.target.value)}>
+          {US_STATES.map((name) => (
+            <option key={name} value={name} disabled={name !== AVAILABLE_STATE}>
+              {name}{name === AVAILABLE_STATE ? '' : ' — coming soon'}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="state-note">
+        <strong>Only Colorado is available right now.</strong> The AI was trained on real Colorado
+        fields. Doing the same for another state means downloading years of satellite and weather
+        data for new fields there and training and testing the AI again, which takes a lot of time
+        and processing quota. Other states are coming soon.
+      </p>
+    </div>
+  );
+}
 
 // A real NDVI picture from the app, with the same color scale the app uses.
 function LivePreview() {
@@ -118,12 +145,13 @@ export default function HomePage() {
                 right spots first.
               </p>
               <div className="hero-actions">
-                <Link to="/app" className="btn btn-primary btn-lg">
+                <Link to="/login" className="btn btn-primary btn-lg">
                   Try it on a field <Icon name="arrowRight" size={18} />
                 </Link>
                 <Link to="/#how" className="btn btn-secondary btn-lg">See how it works</Link>
               </div>
-              <p className="hero-note">Free to try · Colorado · No account needed</p>
+              <p className="hero-note">Free to try · Colorado · No account needed to analyze</p>
+              <StatePicker />
             </div>
             <LivePreview />
           </div>
@@ -255,7 +283,7 @@ export default function HomePage() {
                 <h2>Try SpectralTurf on your field</h2>
                 <p>Outline a park or sports field in Colorado and get a real satellite check, usually within a minute.</p>
               </div>
-              <Link to="/app" className="btn btn-gold btn-lg">
+              <Link to="/login" className="btn btn-gold btn-lg">
                 Open the app <Icon name="arrowRight" size={18} />
               </Link>
             </div>

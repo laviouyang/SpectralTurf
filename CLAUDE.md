@@ -24,10 +24,29 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   with a THROWAWAY database (DATABASE_PATH in the scratchpad, deleted after): street map, dates,
   locks, homepage login, AI Weather Check on a saved field (real data), Ask AI on a saved field
   (real Gemini). What-if drop-down not clicked in a browser; no real phone test.
+- VERSION 2, ROUND 2 (2026-11-25, student requests, on `version-2`): search bar on the left of
+  the app top bar; separate /login page (LoginPage.jsx, uses the exported LoginForm) between home
+  and app - homepage "Try it" / "Open the app" (logged out) and the app's "Log in" go there, with
+  "Continue without an account"; SAVING IS SEPARATE: logged-in users get "Save & analyze" (needs
+  a name) and "Analyze only (don't save)"; POST /api/analyze new optional `save` (default true =
+  old behavior; website always sends it); a name can be used once - Modal.jsx pop-up "Replace
+  it / Don't replace"; replace deletes the old same-name saves only AFTER the new one is saved
+  (frontend check, not enforced in the backend); map note bottom right: background map for
+  drawing only, Esri photo ~June 1, 2025 (date checked at ONE field, Gates North - worded so,
+  can differ by place); AI Check panels titled "1. AI Weather Check" / "2. What if?"; footer
+  credits linked (Copernicus, Open-Meteo, OSM copyright, Nominatim, Esri); search works for ANY
+  address (Colorado still preferred via viewbox) and region.js pops up an outside-Colorado
+  warning (+ a notice on fields outside CO); homepage StatePicker: all 50 states, only Colorado
+  selectable, others "coming soon", with a disclaimer why. Tests backend/test_analyze_save.py 4/4.
+  Checked in Chrome with a throwaway DB (deleted): homepage, login page sign-up -> app, search
+  left, outside-CO pop-up (Central Park NY), Analyze only saves nothing, Save & analyze ->
+  replace pop-up -> old entry deleted, new real result saved (Grass B box NDVI median 0.777,
+  image 2026-08-05), AI Check numbering, logged-out "Log in" -> /login.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
-  test_assistant 48, test_limits 23, test_ask_focus 15 (version-2 only), ml get_fields 20,
+  test_assistant 48, test_limits 23, test_ask_focus 15 + test_analyze_save 4 (version-2 only),
+  ml get_fields 20,
   ndvi_history 11, weather 6, dataset_and_model 15, dataset_v3 13; frontend builds.
 
 ## How to run all tests
@@ -35,7 +54,7 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
 cd backend
 python test_indices.py; python test_accounts.py; python test_predict.py
 python test_assistant.py; python test_limits.py
-python test_ask_focus.py   # version-2 branch only
+python test_ask_focus.py; python test_analyze_save.py   # version-2 branch only
 cd ..
 python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
 python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py
@@ -485,9 +504,8 @@ Progress:
 - GitHub: https://github.com/laviouyang/SpectralTurf. `main` pushed 2026-11-22; `ui-redesign`
   is on GitHub too (see "Current status"). Older handoff summary: `docs/HANDOFF.md` (may be out of
   date; CLAUDE.md is the up-to-date record).
-- Render deploy not yet done; unverified there: staticPublishPath relative to rootDir, rewrite of
-  POST/large photo bodies, Python 3.13.14 availability. Esri basemap terms for a public site
-  unverified.
+- Render: deployed by the student (2026-11-25). Not checked by Claude there: rewrite of POST /
+  large photo bodies. Esri basemap terms for a public site unverified.
 - Gemini free tier: Google may use what is sent to improve its products (the chat panel warns).
 - Redesign: when searching a place, the map centers on the full screen, so part of the field can
   sit under the floating panel. Polygon drawing, exclusions and logged-in flows were not clicked

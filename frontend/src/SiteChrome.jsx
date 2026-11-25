@@ -53,9 +53,9 @@ export function SiteNav() {
                 Logged in as {user.username}
               </Link>
             ) : (
-              <Link to="/app#account" className="btn btn-ghost" onClick={close}>Log in</Link>
+              <Link to="/login" className="btn btn-ghost" onClick={close}>Log in</Link>
             )}
-            <Link to="/app" className="btn btn-primary" onClick={close}>Open the app</Link>
+            <Link to={user ? '/app' : '/login'} className="btn btn-primary" onClick={close}>Open the app</Link>
           </div>
         </nav>
       </div>
@@ -90,9 +90,22 @@ export function SiteFooter() {
         <div>
           <h2 className="footer-heading">Data credits</h2>
           <ul className="footer-links footer-credits">
-            <li>Contains modified Copernicus Sentinel-2 data (Copernicus Data Space Ecosystem)</li>
-            <li>Weather data by Open-Meteo.com</li>
-            <li>Field outlines and place search © OpenStreetMap contributors</li>
+            <li>
+              Contains modified Copernicus Sentinel-2 data (
+              <a href="https://dataspace.copernicus.eu/" target="_blank" rel="noreferrer">Copernicus Data Space Ecosystem</a>)
+            </li>
+            <li>
+              Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo.com</a>
+            </li>
+            <li>
+              Field outlines and place search ©{' '}
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>
+              {' '}(search by <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noreferrer">Nominatim</a>)
+            </li>
+            <li>
+              Satellite photo for drawing:{' '}
+              <a href="https://www.esri.com/" target="_blank" rel="noreferrer">Esri World Imagery</a>
+            </li>
           </ul>
         </div>
       </div>

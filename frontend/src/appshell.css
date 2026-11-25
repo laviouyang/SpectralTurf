@@ -475,3 +475,85 @@ button.panel-tab[aria-selected='true'] {
   right: calc(50% - 20px);
   font-size: 0.7rem;
 }
+
+/* ---- Version 2, second round (2026-11-25) ---- */
+/* Search bar on the left (right after the logo); the account button stays on the right. */
+.topbar-search {
+  margin: 0 auto 0 0;
+}
+/* "Log in" link (logged out): goes to the separate /login page. */
+a.account-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cream);
+  font-weight: 500;
+  text-decoration: none;
+}
+a.account-login:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+/* Note about the background map's date, bottom right of the map (above the map credits). */
+.map-date-note {
+  position: absolute;
+  right: 8px;
+  bottom: 26px;
+  z-index: 1000;
+  max-width: 300px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.notice-warn {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  border-left: 4px solid var(--gold);
+}
+button.analyze-only {
+  margin-top: var(--s1);
+}
+/* Pop-ups (Modal.jsx) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s2);
+  background: rgba(11, 43, 47, 0.45);
+}
+.modal-box {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--s3);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--ink);
+}
+.modal-box h2 {
+  margin: 0 0 var(--s1);
+  font-size: 1.2rem;
+}
+.modal-buttons {
+  justify-content: flex-end;
+  margin-top: var(--s2);
+}
+@media (max-width: 760px) {
+  .map-date-note {
+    top: 60px;
+    bottom: auto;
+    max-width: 62%;
+  }
+}

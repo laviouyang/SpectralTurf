@@ -16,7 +16,8 @@ const STATUS_TEXT = {
   insufficient_evidence: 'Insufficient evidence',
 };
 
-function LoginForm({ onUserChange }) {
+// Exported in Version 2 so the separate log-in page (LoginPage.jsx) can use the same form.
+export function LoginForm({ onUserChange }) {
   const [mode, setMode] = useState('login'); // 'login' or 'signup'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +42,8 @@ function LoginForm({ onUserChange }) {
   return (
     <form className="account-form" onSubmit={handleSubmit}>
       <p className="muted">
-        Optional. With an account, your analyses are saved so you can come back to a field later.
+        Optional. With an account you can save fields under a name and use My Fields, the AI
+        checks and Ask AI.
       </p>
       <label>
         Username
@@ -124,7 +126,7 @@ export default function AccountPanel({ user, onUserChange, onLogOut, history, hi
           Log out
         </button>
       </p>
-      <p className="muted">Each analysis you run is saved here automatically.</p>
+      <p className="muted">Fields you save with “Save &amp; analyze” are listed here.</p>
       {historyError && <p className="problems-box">{historyError}</p>}
       {history.length === 0 ? (
         <p className="muted">No saved analyses yet.</p>
@@ -149,7 +151,7 @@ export function SavedAnalyses({ history, historyError, onShow, onDelete }) {
     <div>
       {historyError && <p className="problems-box">{historyError}</p>}
       {history.length === 0 ? (
-        <p className="muted">No saved analyses yet. Each analysis you run while logged in is saved here.</p>
+        <p className="muted">No saved analyses yet. Draw a field, give it a name and click “Save &amp; analyze”.</p>
       ) : (
         <ul className="history-list">
           {history.map((item) => (

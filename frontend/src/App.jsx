@@ -12,6 +12,10 @@
  * Version 2 (2026-11-25, student requests): dates default to "the 2 weeks up to yesterday" and
  * can't be reversed; My Fields / AI Check / Ask AI need an account; the AI tools have a field
  * drop-down (FieldPicker.jsx); Ask AI only works after picking ONE field.
+ * Version 2, second round (2026-11-25): search on the left; logging in happens on the separate
+ * /login page; saving is a separate choice ("Save & analyze" vs "Analyze only") and a name can
+ * only be used once (pop-up: replace or not); any address can be searched, with a pop-up when a
+ * place is outside Colorado; a note about the background map's date.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapView from './MapView.jsx';
@@ -26,7 +30,9 @@ import Panel from './Panel.jsx';
 import FieldPicker, { distinctFields } from './FieldPicker.jsx';
 import { AccountMenu, EmptyState, ResultsSkeleton, Spinner } from './AppChrome.jsx';
 import { Icon, Logo } from './Icons.jsx';
-import { Link } from './router.jsx';
+import { Link, navigate } from './router.jsx';
+import Modal from './Modal.jsx';
+import { OUTSIDE_COLORADO_MESSAGE, isInColorado, polygonCenter } from './region.js';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
@@ -91,6 +97,11 @@ export default function App() {
   const myFields = useMemo(() => distinctFields(history), [history]);
   const savedField = (value) => myFields.find((f) => String(f.id) === value) || null;
   const pickedName = (value) => (value === 'map' ? 'Field on the map' : savedField(value)?.name || 'Unnamed field');
+
+  // Version 2: pop-ups ("replace the saved field?" and "outside Colorado") and the last saved name.
+  const [replaceAsk, setReplaceAsk] = useState(null); // {name, ids} or null
+  const [regionWarning, setRegionWarning] = useState(false);
+  const [savedAs, setSavedAs] = useState('');
 
   // Layout only (UI redesign): which tab is shown, the account menu, and the panel/sheet.
   const [tab, setTab] = useState('analyze');
@@ -190,16 +201,26 @@ export default function App() {
   // counted twice, so this is "about"; the backend reports the exact pixel count).
   const excludedM2 = exclusions.reduce((sum, shape) => sum + shape.areaM2, 0);
 
-  async function handleAnalyze() {
+  // Version 2: save = false for "Analyze" (nothing is saved), true for "Save & analyze".
+  // replaceIds = saved analyses with the same name, deleted only AFTER the new one is saved.
+  async function handleAnalyze(save = false, replaceIds = []) {
     const thisRequest = ++requestCount.current;
+    const name = fieldName.trim();
     setLoading(true);
     setResult(null);
     setError('');
+    setSavedAs('');
     try {
       const exclude = exclusions.map((shape) => shape.geojson);
-      const data = await analyzeArea(polygon.geojson, exclude, start, end, user ? fieldName : '');
+      const data = await analyzeArea(polygon.geojson, exclude, start, end, save ? name : '', Boolean(user && save));
       if (thisRequest === requestCount.current) setResult(data);
-      if (data.saved_id) refreshHistory();
+      if (data.saved_id) {
+        for (const id of replaceIds) {
+          await deleteHistoryItem(id).catch(() => {}); // the replaced, older save(s)
+        }
+        if (thisRequest === requestCount.current) setSavedAs(name);
+        refreshHistory();
+      }
       if (data.save_error) setHistoryError(`This analysis was not saved: ${data.save_error}`);
     } catch (e) {
       if (thisRequest === requestCount.current) setError(e.message);
@@ -208,8 +229,19 @@ export default function App() {
     }
   }
 
+  // "Save & analyze": a name can only be used once. If it is taken, ask before replacing.
+  function handleSaveAndAnalyze() {
+    const name = fieldName.trim();
+    const sameName = history.filter((item) => item.name.trim().toLowerCase() === name.toLowerCase());
+    if (sameName.length > 0) setReplaceAsk({ name, ids: sameName.map((item) => item.id) });
+    else handleAnalyze(true);
+  }
+
   const excludeShapes = exclusions.map((shape) => shape.geojson);
   const today = new Date().toLocaleDateString('en-CA');
+  const fieldOutsideColorado = polygon
+    ? !isInColorado(polygonCenter(polygon.geojson).lat, polygonCenter(polygon.geojson).lon)
+    : false;
   const TABS = [
     { id: 'analyze', label: 'Analyze', icon: 'draw' },
     { id: 'myfields', label: 'My Fields', icon: 'list', needsAccount: true },
@@ -224,7 +256,7 @@ export default function App() {
         icon={icon}
         title={title}
         action={(
-          <button type="button" onClick={() => setAccountOpen(true)}>
+          <button type="button" onClick={() => navigate('/login')}>
             Log in or create an account
           </button>
         )}
@@ -254,9 +286,17 @@ export default function App() {
             onSelect={(target) => {
               setSearchTarget(target);
               setSheetOpen(false); // phones: show the map
+              if (target.outsideColorado) setRegionWarning(true);
             }}
           />
         </div>
+        {!user ? (
+          // Version 2: logging in happens on the separate /login page, not inside the app.
+          <Link to="/login" className="account-login">
+            <Icon name="user" size={18} />
+            <span className="account-label">Log in</span>
+          </Link>
+        ) : (
         <AccountMenu user={user} open={accountOpen} onOpenChange={setAccountOpen}>
           <AccountPanel
             user={user}
@@ -272,6 +312,7 @@ export default function App() {
             onDelete={handleDelete}
           />
         </AccountMenu>
+        )}
       </header>
 
       <div className="app-stage">
@@ -287,6 +328,48 @@ export default function App() {
           loadRequest={loadRequest}
           overlay={overlay}
         />
+        {/* Version 2: when the background map is from (it is only for drawing). */}
+        <p className="map-date-note">
+          Background map is for drawing only. Satellite photo layer: Esri, taken about June 1, 2025
+          (date checked at one Colorado field; it can differ by place). The analysis uses Sentinel-2
+          images from your chosen dates.
+        </p>
+
+        {replaceAsk && (
+          <Modal
+            title="Replace the saved field?"
+            onClose={() => setReplaceAsk(null)}
+            buttons={[
+              {
+                label: 'Replace it',
+                onClick: () => {
+                  const ids = replaceAsk.ids;
+                  setReplaceAsk(null);
+                  handleAnalyze(true, ids);
+                },
+              },
+              { label: "Don't replace", secondary: true, onClick: () => setReplaceAsk(null) },
+            ]}
+          >
+            <p>
+              You already have a field saved as <strong>“{replaceAsk.name}”</strong>
+              {replaceAsk.ids.length > 1 ? ` (${replaceAsk.ids.length} saved analyses)` : ''}.
+            </p>
+            <p>
+              Replace it with this new analysis? The old one will be deleted once the new one is saved.
+              Or choose “Don&apos;t replace” and type a different name.
+            </p>
+          </Modal>
+        )}
+        {regionWarning && (
+          <Modal
+            title="Outside Colorado"
+            onClose={() => setRegionWarning(false)}
+            buttons={[{ label: 'I understand', onClick: () => setRegionWarning(false) }]}
+          >
+            <p>{OUTSIDE_COLORADO_MESSAGE}</p>
+          </Modal>
+        )}
 
         {panelHidden && (
           <button type="button" className="panel-reveal" onClick={() => setPanelHidden(false)}>
@@ -372,6 +455,9 @@ export default function App() {
                         </div>
                       </div>
 
+                      {fieldOutsideColorado && (
+                        <p className="notice notice-warn">⚠ {OUTSIDE_COLORADO_MESSAGE}</p>
+                      )}
                       {editing ? (
                         <p className="notice notice-info">
                           Editing: drag the white squares on the map to move corners. The numbers above
@@ -472,22 +558,46 @@ export default function App() {
                 <p className="muted">
                   The app picks the least-cloudy Sentinel-2 image in this date range.
                 </p>
-                {user && (
-                  <label className="field-name">
-                    Field name (for your saved history)
-                    <input
-                      value={fieldName}
-                      maxLength={80}
-                      placeholder="e.g. Village Greens north field"
-                      onChange={(e) => setFieldName(e.target.value)}
-                    />
-                  </label>
+                {user ? (
+                  <>
+                    {/* Version 2: saving is a separate choice. */}
+                    <label className="field-name">
+                      Field name (only needed to save it)
+                      <input
+                        value={fieldName}
+                        maxLength={80}
+                        placeholder="e.g. Village Greens north field"
+                        onChange={(e) => setFieldName(e.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="btn-block"
+                      onClick={handleSaveAndAnalyze}
+                      disabled={!canAnalyze || !fieldName.trim()}
+                    >
+                      {loading && <Spinner />}
+                      {loading ? 'Analyzing…' : 'Save & analyze'}
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary btn-block analyze-only"
+                      onClick={() => handleAnalyze(false)}
+                      disabled={!canAnalyze}
+                    >
+                      Analyze only (don&apos;t save)
+                    </button>
+                    {!fieldName.trim() && polygon && (
+                      <p className="muted">Type a name to save this field, or just analyze it.</p>
+                    )}
+                    {savedAs && result && <p className="ok">✓ Saved as “{savedAs}”.</p>}
+                  </>
+                ) : (
+                  <button type="button" className="btn-block" onClick={() => handleAnalyze(false)} disabled={!canAnalyze}>
+                    {loading && <Spinner />}
+                    {loading ? 'Analyzing…' : 'Analyze'}
+                  </button>
                 )}
-
-                <button type="button" className="btn-block" onClick={handleAnalyze} disabled={!canAnalyze}>
-                  {loading && <Spinner />}
-                  {loading ? 'Analyzing…' : 'Analyze'}
-                </button>
                 {!polygon && <p className="muted">Draw an area first.</p>}
                 {editing && <p className="muted">Click Save shape before analyzing.</p>}
                 {loading && (
@@ -531,7 +641,7 @@ export default function App() {
                   icon="list"
                   title="Save fields to rank them"
                   action={(
-                    <button type="button" onClick={() => setAccountOpen(true)}>
+                    <button type="button" onClick={() => navigate('/login')}>
                       Log in or create an account
                     </button>
                   )}
@@ -565,7 +675,7 @@ export default function App() {
             <div role="tabpanel" id="tabpanel-aicheck" aria-labelledby="tab-aicheck" hidden={tab !== 'aicheck'}>
               {!user ? loginNeeded('chart', 'Log in to use the AI checks') : (
                 <>
-                  <Panel id="v2-weathercheck" title="AI Weather Check" defaultOpen>
+                  <Panel id="v2-weathercheck" title="1. AI Weather Check" defaultOpen>
                     <FieldPicker
                       label="Field to check"
                       value={checkField}
@@ -598,7 +708,7 @@ export default function App() {
                       />
                     )}
                   </Panel>
-                  <Panel id="v2-whatif" title="What if? — AI weather scenario" defaultOpen>
+                  <Panel id="v2-whatif" title="2. What if? — AI weather scenario" defaultOpen>
                     <FieldPicker
                       label="Field for the scenario"
                       value={whatIfField}

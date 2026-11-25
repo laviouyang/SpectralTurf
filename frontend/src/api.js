@@ -66,9 +66,10 @@ async function request(path, { method = 'GET', body } = {}) {
 
 // Send the drawn outline, the excluded areas inside it, and dates;
 // get back real NDVI/NDMI statistics. If logged in, the backend also saves
-// a summary to your history under "name".
-export function analyzeArea(geometry, exclude, start, end, name = '') {
-  return request('/api/analyze', { method: 'POST', body: { geometry, exclude, start, end, name } });
+// a summary to your history under "name" - only when save is true (Version 2: saving is a
+// separate choice, "Save & analyze" vs "Analyze").
+export function analyzeArea(geometry, exclude, start, end, name = '', save = true) {
+  return request('/api/analyze', { method: 'POST', body: { geometry, exclude, start, end, name, save } });
 }
 
 // ---- Accounts ----

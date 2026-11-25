@@ -713,3 +713,63 @@ button.nav-toggle:hover:not(:disabled) {
   align-items: center;
   gap: 8px;
 }
+
+/* ---- Version 2, second round (2026-11-25) ---- */
+/* Homepage "Which state are your fields in?" */
+.state-picker {
+  margin-top: var(--s3);
+  padding: var(--s2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  max-width: 520px;
+}
+.state-picker label {
+  display: block;
+  font-weight: 600;
+}
+.state-picker select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  font: inherit;
+  font-weight: 400;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+.state-note {
+  margin: var(--s1) 0 0;
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+}
+/* Footer credit links */
+.footer-credits a {
+  color: inherit;
+  text-decoration: underline;
+}
+/* Separate log-in page */
+.login-page {
+  display: flex;
+  justify-content: center;
+}
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.login-card h1 {
+  margin-top: 0;
+  font-size: 1.6rem;
+}
+.login-skip {
+  margin-top: var(--s3);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+}
