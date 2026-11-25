@@ -57,6 +57,11 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   student's own servers were running on 8000/5173): draw -> Save (no numbers stored) -> Clear ->
   My Fields -> Show on map -> Analyze (real image 2026-11-20, Insufficient evidence; nothing
   saved) -> Save same name -> replace pop-up -> old row deleted.
+  ROUND 3b (student): saving must feel OPTIONAL -> the name box + "Save to My Fields" moved
+  out of the Your field card to just UNDER the Analyze button ("Save this field (optional)",
+  secondary button, "You don't have to save to analyze"). Analyze never needs a name. Checked
+  in Chrome (ports 8001/5175, throwaway DB): Analyze enabled with an empty name, Save disabled
+  until a name is typed.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,

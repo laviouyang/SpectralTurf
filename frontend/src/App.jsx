@@ -505,39 +505,6 @@ export default function App() {
                         </button>
                       </div>
 
-                      {/* Version 2: Save is separate from Analyze (no dates, no analysis). */}
-                      <div className="save-box">
-                        {user ? (
-                          <>
-                            <label className="field-name">
-                              Field name
-                              <input
-                                value={fieldName}
-                                maxLength={80}
-                                placeholder="e.g. Village Greens north field"
-                                onChange={(e) => setFieldName(e.target.value)}
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              className="btn-block"
-                              onClick={handleSave}
-                              disabled={!check.ok || editing || saving || !fieldName.trim()}
-                            >
-                              {saving ? 'Saving…' : 'Save to My Fields'}
-                            </button>
-                            {!fieldName.trim() && <p className="muted">Type a name to save this field.</p>}
-                            {saveMessage && (
-                              <p className={saveMessage.startsWith('✓') ? 'ok' : 'problems'}>{saveMessage}</p>
-                            )}
-                          </>
-                        ) : (
-                          <p className="muted">
-                            <Link to="/login">Log in</Link> to save this field to My Fields.
-                          </p>
-                        )}
-                      </div>
-
                       <div className="exclude-box">
                         <p>
                           <strong>Leave out non-turf parts</strong>
@@ -608,13 +575,52 @@ export default function App() {
                 <p className="muted">
                   The app picks the least-cloudy Sentinel-2 image in this date range.
                 </p>
-                {/* Version 2: Analyze never saves (saving is the "Save to My Fields" button above). */}
+                {/* Version 2: Analyze never saves. Saving is the OPTIONAL button below. */}
                 <button type="button" className="btn-block" onClick={handleAnalyze} disabled={!canAnalyze}>
                   {loading && <Spinner />}
                   {loading ? 'Analyzing…' : 'Analyze'}
                 </button>
                 {!polygon && <p className="muted">Draw an area first.</p>}
                 {editing && <p className="muted">Click Save shape before analyzing.</p>}
+
+                {/* Optional: save the field (outline + excluded areas + name) to My Fields. */}
+                <div className="save-box">
+                  <p className="save-title">
+                    <strong>Save this field</strong> <span className="muted">(optional)</span>
+                  </p>
+                  {user ? (
+                    <>
+                      <label className="field-name">
+                        Field name
+                        <input
+                          value={fieldName}
+                          maxLength={80}
+                          placeholder="e.g. Village Greens north field"
+                          onChange={(e) => setFieldName(e.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary btn-block"
+                        onClick={handleSave}
+                        disabled={!check?.ok || editing || saving || !fieldName.trim()}
+                      >
+                        {saving ? 'Saving…' : 'Save to My Fields'}
+                      </button>
+                      <p className="muted">
+                        You don&apos;t have to save to analyze. Saving keeps the outline so you can open it
+                        again from My Fields.
+                      </p>
+                      {saveMessage && (
+                        <p className={saveMessage.startsWith('✓') ? 'ok' : 'problems'}>{saveMessage}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="muted">
+                      <Link to="/login">Log in</Link> to save fields to My Fields.
+                    </p>
+                  )}
+                </div>
                 {loading && (
                   <p className="muted">Downloading real Sentinel-2 data. This can take up to a minute.</p>
                 )}

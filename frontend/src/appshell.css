@@ -586,3 +586,6 @@ button.analyze-only {
   padding-top: var(--s2);
   border-top: 1px solid var(--line);
 }
+.save-title {
+  margin: 0 0 var(--s1);
+}
