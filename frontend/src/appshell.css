@@ -589,3 +589,38 @@ button.analyze-only {
 .save-title {
   margin: 0 0 var(--s1);
 }
+/* Grass region box in the Your field card (added 2026-11-25) */
+.region-box {
+  margin: var(--s2) 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+}
+.region-box p {
+  margin: 0 0 var(--s1);
+}
+.region-box select {
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  font: inherit;
+}
+.region-chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.region-chip.ok {
+  background: var(--mint-soft);
+  color: var(--forest);
+}
+.region-chip.soon {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+.region-result {
+  margin-bottom: var(--s2);
+}

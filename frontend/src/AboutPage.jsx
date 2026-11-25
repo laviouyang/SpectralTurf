@@ -5,6 +5,7 @@
  */
 import { Link } from './router.jsx';
 import { SiteFooter, SiteNav } from './SiteChrome.jsx';
+import { DATA as REGION_DATA, REGIONS } from './turfRegions.js';
 
 const SECTIONS = [
   ['what', 'What it is'],
@@ -13,6 +14,7 @@ const SECTIONS = [
   ['rule', 'The inspection flag'],
   ['ai', 'The AI model'],
   ['assistant', 'The AI assistant'],
+  ['regions', 'Grass regions'],
   ['limits', 'Limitations'],
   ['privacy', 'Privacy'],
   ['credits', 'Credits'],
@@ -160,6 +162,41 @@ export default function AboutPage() {
               </p>
             </section>
 
+            <section id="regions">
+              <h2>Grass regions</h2>
+              <p>
+                The homepage map splits the 48 states into 7 grass regions. When you draw a field, the
+                app detects its region from the field&apos;s location and shows it (you can change it).
+                The region is only a label: the satellite measurements are calculated the same way
+                everywhere.
+              </p>
+              <p>
+                <strong>Only Region 3 (Northern &amp; Central Plains) is validated</strong>, and only with
+                Denver-area fields: the healthy-turf baseline (NDVI 0.5, NDMI 0), the color cutoff
+                (NGRDI 0.15) and the AI model were made from them. In every other region the app says
+                &ldquo;not validated for this region yet&rdquo;. The within-field check (comparing a field
+                with itself) still works anywhere.
+              </p>
+              <ul>
+                {REGIONS.map((r) => (
+                  <li key={r.id}>
+                    <strong>Region {r.id}: {r.name}</strong> ({r.climate}): {r.grasses.join(', ')}.{' '}
+                    <a href={REGION_DATA.sources[r.source].url} target="_blank" rel="noreferrer">Source</a>
+                  </li>
+                ))}
+              </ul>
+              <p>
+                <strong>How the map was made:</strong> it is a simplified map drawn for this project,
+                not an official USDA map, and the boundaries are approximate. The split into
+                cool-season, transition and warm-season areas follows the zone maps of the{' '}
+                <a href={REGION_DATA.sources.framework[0].url} target="_blank" rel="noreferrer">University of Maryland Extension</a>
+                {' '}and{' '}
+                <a href={REGION_DATA.sources.framework[1].url} target="_blank" rel="noreferrer">Kansas State University</a>
+                ; the finer split into 7 regions and the exact lines are our approximation. Each
+                region&apos;s grass list comes from a university extension in that region.
+              </p>
+            </section>
+
             <section id="limits">
               <h2>Limitations</h2>
               <ul>
@@ -168,6 +205,7 @@ export default function AboutPage() {
                 <li>One image is a snapshot of one day; thin haze can slip past cloud masking.</li>
                 <li>Dormant grass in spring or autumn and other grass types can fall below the summer baseline naturally.</li>
                 <li>Artificial turf looks green to the eye but has low NDVI.</li>
+                <li>The baseline, color cutoff and AI model are validated only for Denver-area fields (Region 3); grass-region boundaries are approximate.</li>
                 <li>Low values say <em>where</em> to look, never <em>why</em>: wear, mowing, dormancy, disease or watering problems can all look alike from space.</li>
               </ul>
             </section>

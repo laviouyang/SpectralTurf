@@ -13,33 +13,7 @@ import { Link } from './router.jsx';
 import { Icon } from './Icons.jsx';
 import { SiteFooter, SiteNav } from './SiteChrome.jsx';
 import facts from './previewFacts.json';
-import { AVAILABLE_STATE, US_STATES } from './region.js';
-
-// Version 2 (2026-11-25): "Which state are you in?" Only Colorado works today; the rest say
-// "coming soon", because the AI has only been trained on Colorado fields.
-function StatePicker() {
-  const [state, setState] = useState(AVAILABLE_STATE);
-  return (
-    <div className="state-picker">
-      <label>
-        Which state are your fields in?
-        <select value={state} onChange={(e) => setState(e.target.value)}>
-          {US_STATES.map((name) => (
-            <option key={name} value={name} disabled={name !== AVAILABLE_STATE}>
-              {name}{name === AVAILABLE_STATE ? '' : ' — coming soon'}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p className="state-note">
-        <strong>Only Colorado is available right now.</strong> The AI was trained on real Colorado
-        fields. Doing the same for another state means downloading years of satellite and weather
-        data for new fields there and training and testing the AI again, which takes a lot of time
-        and processing quota. Other states are coming soon.
-      </p>
-    </div>
-  );
-}
+import RegionMap from './RegionMap.jsx';
 
 // A real NDVI picture from the app, with the same color scale the app uses.
 function LivePreview() {
@@ -150,10 +124,22 @@ export default function HomePage() {
                 </Link>
                 <Link to="/#how" className="btn btn-secondary btn-lg">See how it works</Link>
               </div>
-              <p className="hero-note">Free to try · Colorado · No account needed to analyze</p>
-              <StatePicker />
+              <p className="hero-note">Free to try · Validated in Colorado (Denver area) · No account needed to analyze</p>
             </div>
             <LivePreview />
+          </div>
+        </section>
+
+        {/* ---- US grass regions (added 2026-11-25; replaces the state picker) ---- */}
+        <section id="regions" className="section" aria-labelledby="regions-title">
+          <div className="container">
+            <p className="eyebrow">Where it works</p>
+            <h2 id="regions-title" className="section-title">US grass regions</h2>
+            <p className="lead-sm">
+              Different parts of the country grow different turfgrasses. Click a region to see its
+              common grasses and whether SpectralTurf is validated there yet.
+            </p>
+            <RegionMap />
           </div>
         </section>
 

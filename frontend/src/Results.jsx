@@ -148,6 +148,16 @@ export default function Results({ result, layer, onLayerChange }) {
   return (
     <div className="results">
       <h3>Results</h3>
+      {/* Added 2026-11-25: the field's grass region and whether SpectralTurf is validated there. */}
+      {result.grass_region && (
+        <div className={`notice ${result.grass_region.validated ? 'notice-info' : 'notice-warn'} region-result`}>
+          <strong>Grass {result.grass_region.label}</strong> · {result.grass_region.status}
+          <br />
+          <span>{result.grass_region.note}</span>
+          <br />
+          <span className="muted">Region boundaries are approximate.</span>
+        </div>
+      )}
       {/* Key numbers. NDVI/NDMI are only shown when there is enough clear data (same rule as the table). */}
       <div className="key-numbers">
         <div className="key-number">

@@ -66,6 +66,27 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   secondary button, "You don't have to save to analyze"). Analyze never needs a name. Checked
   in Chrome (ports 8001/5175, throwaway DB): Analyze enabled with an empty name, Save disabled
   until a name is typed.
+- GRASS REGIONS (2026-11-25, student request; replaces the homepage state picker). 7 US
+  turfgrass regions; ONLY Region 3 (Northern & Central Plains, Denver-area fields) validated.
+  Data: scripts/make_turf_regions.py writes frontend/src/turfRegions.json + identical
+  backend/turf_regions.json (simplified hand-drawn 48-state outline; region ZONES tile the box
+  126-66 W / 24-50 N; approximate). SOURCES: no single public source draws these 7 regions ->
+  framework = UMD Extension zone map + K-State "approximate boundaries" transition-zone map; the
+  7-way split and lines are OUR approximation (said on the page). Grass lists checked per region:
+  OSU EC1521, USU, CSU, UMN, U of Arizona, NC State TurfFiles, UF/IFAS LH005. Dropped from the
+  student's lists as NOT confirmed by those sources: bentgrass (2, 4), zoysia (3), blue grama (5);
+  added blue grama + fine fescues (3, CSU), tall fescue (1, 4). References/Grasstypes.jpg = a
+  company image, used only as a loose reference, git-ignored, never on the site.
+  RegionMap.jsx (homepage section #regions): original SVG (zones clipped to the outline),
+  clickable/keyboard regions, info panel, legend, text list, "Validated"/"Coming soon" (striped).
+  App: region detected from the field center (turfRegions.js) + "Wrong region? Change it";
+  non-3 -> "Not validated for this region yet" notice (Your field card, Results, AI Check).
+  Backend regions.py: POST /api/analyze optional `region` -> result.grass_region (label only;
+  numbers unchanged, tested); POST /api/ai/ask optional `region` -> Context.grass_region, added
+  to every tool result + intro; prompt rule 12. About page + README updated.
+  Tests backend/test_regions.py 16/16 (21 cities). Checked in Chrome: map, click/keyboard, 390 px
+  (no sideways scroll), app detect Village Greens -> Region 3, change -> Region 7 warning.
+  NOT live-tested: a real analysis/Ask with a region (backend tested with fakes).
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
@@ -79,7 +100,7 @@ cd backend
 python test_indices.py; python test_accounts.py; python test_predict.py
 python test_assistant.py; python test_limits.py
 python test_ask_focus.py; python test_analyze_save.py; python test_save_field.py   # version-2 only
-python test_ai_login.py   # version-2 only
+python test_ai_login.py; python test_regions.py   # version-2 only
 cd ..
 python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
 python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py

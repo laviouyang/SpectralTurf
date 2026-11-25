@@ -68,8 +68,9 @@ async function request(path, { method = 'GET', body } = {}) {
 // get back real NDVI/NDMI statistics. If logged in, the backend also saves
 // a summary to your history under "name" - only when save is true (Version 2: saving is a
 // separate choice, "Save & analyze" vs "Analyze").
-export function analyzeArea(geometry, exclude, start, end, name = '', save = true) {
-  return request('/api/analyze', { method: 'POST', body: { geometry, exclude, start, end, name, save } });
+// region (added 2026-11-25): the field's grass region 1-7 (only a label; the math is the same).
+export function analyzeArea(geometry, exclude, start, end, name = '', save = true, region = null) {
+  return request('/api/analyze', { method: 'POST', body: { geometry, exclude, start, end, name, save, region } });
 }
 
 // Version 2: save a field (outline + excluded areas + name) to My Fields WITHOUT analyzing it.

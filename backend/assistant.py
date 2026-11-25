@@ -98,7 +98,10 @@ Rules (always follow them):
    or where it was taken. Describe only what is plainly visible (green, yellow or brown areas, bare or
    worn spots, standing water, lines) in plain words, and suggest where to look in person. Never name
    a disease, pest or cause from a photo, never estimate NDVI or any other number from it, and do not
-   count things in it. Satellite numbers still come only from the tools."""
+   count things in it. Satellite numbers still come only from the tools.
+12. If a tool result has "grass_region", mention the field's region (number and name) once, and say
+   whether SpectralTurf is validated there. If it is not validated, say the baseline, color cutoff
+   and AI model were made from Denver-area fields, so those results may not be accurate there."""
 
 
 class AssistantError(Exception):
@@ -156,6 +159,8 @@ class Context:
         # Version 2 (2026-11-25): the ONE field the user picked ("screen" or "field-N"), or None.
         # When set, the tools refuse every other field, so answers are about that field only.
         self.focus = focus
+        # Added 2026-11-25: the grass region (regions.describe) of the field the questions are about.
+        self.grass_region = None
         self.saved = saved if logged_in else []
         self.screen = screen
         self.analyze_screen = analyze_screen
@@ -440,9 +445,12 @@ def run_tool(name, args, ctx):
     if name not in TOOLS:
         return {"error": f"Unknown tool '{name}'."}
     try:
-        return TOOLS[name][0](ctx, args or {})
+        result = TOOLS[name][0](ctx, args or {})
     except (ToolDataError, predict.PredictError) as e:
         return {"error": str(e)}
+    if ctx.grass_region and isinstance(result, dict):  # added 2026-11-25: region + validated or not
+        result["grass_region"] = ctx.grass_region
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -617,6 +625,9 @@ def ask(question, ctx, call=None, photo=None):
     screen = "a field is drawn on the map ('screen')" if ctx.screen else "no field is drawn on the map"
     attached = "; the user attached a photo (not a measurement, see rule 11)" if photo else ""
     picked = f"; the user picked ONE field ('{ctx.focus}'): answer only about that field" if ctx.focus else ""
+    if ctx.grass_region:  # added 2026-11-25 (rule 12)
+        picked += (f"; the field is in grass {ctx.grass_region['label']} "
+                   f"({ctx.grass_region['status']})")
     intro = f"[Context: the user is {who}; {screen}{picked}; answer as of {ctx.as_of.isoformat()}{attached}.]\n"
     contents = [{"role": "user", "parts": [{"text": intro + question}]}]
     if photo:

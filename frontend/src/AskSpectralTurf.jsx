@@ -61,7 +61,8 @@ function Answer({ text }) {
 }
 
 // field (Version 2): 'screen' or a saved analysis id; questions are only about that field.
-export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, user, field, fieldLabel }) {
+// region (added 2026-11-25): the picked field's grass region 1-7, so answers can mention it.
+export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, user, field, fieldLabel, region = null }) {
   const [question, setQuestion] = useState('');
   const [chat, setChat] = useState([]); // newest last: {question, reply?, error?}
   const [busy, setBusy] = useState(false);
@@ -78,7 +79,7 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
     let entry;
     try {
       const reply = await askSpectralTurf({ question: q, geometry, exclude, start, end, as_of: asOf,
-                                            photo: sentPhoto?.base64, field });
+                                            photo: sentPhoto?.base64, field, region });
       entry = { question: q, photo: sentPhoto?.preview, reply };
     } catch (e) {
       entry = { question: q, photo: sentPhoto?.preview, error: e.message };

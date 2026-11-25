@@ -36,6 +36,7 @@ import accounts
 import assistant
 import indices
 import predict
+import regions
 import render
 import saved_fields
 import sentinel
@@ -200,6 +201,9 @@ class AnalyzeRequest(BaseModel):
     # Added 2026-11-25 (Version 2): saving is now a separate choice ("Save & analyze" vs
     # "Analyze"). The website always sends it; leaving it out keeps the old behavior (save).
     save: bool = Field(True, description="Logged in: save a summary of this result to your history")
+    # Added 2026-11-25: the field's grass region (1-7, detected on the map or changed by the user).
+    # Only a LABEL on the result: the analysis math is exactly the same in every region.
+    region: int | None = Field(None, ge=1, le=7, description="Grass region 1-7 (optional; detected if left out)")
 
 
 @app.post("/api/analyze")
@@ -209,6 +213,8 @@ def analyze(request: AnalyzeRequest, user=Depends(current_user), db=Depends(get_
         raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
     exclusions = [clean_polygon(shape) for shape in request.exclude]
     result = run_analysis(geometry, request.start, request.end, request.max_cloud, exclusions)
+    # Grass region label + "validated or not" (regions.py). Numbers above are unchanged.
+    result["grass_region"] = regions.resolve(request.region, geometry)
 
     # Logged in and asked to save ("Save & analyze")? Save a summary of this real result.
     # Saving problems never hide the analysis itself.
@@ -452,6 +458,8 @@ class AskRequest(BaseModel):
     # Added 2026-11-25 (Version 2): the ONE field the questions are about: "screen" (the field
     # on the map) or the id of one of your saved analyses. Optional, so old requests still work.
     field: str | None = Field(None, max_length=40, description="'screen' or a saved analysis id")
+    # Added 2026-11-25: the picked field's grass region (1-7); detected from its outline if left out.
+    region: int | None = Field(None, ge=1, le=7, description="Grass region 1-7 of the picked field")
 
 
 @app.post("/api/ai/ask")
@@ -512,6 +520,11 @@ def ask(body: AskRequest, request: Request, user=Depends(required_user), db=Depe
                 raise HTTPException(status_code=404, detail="That field is not in your saved fields.")
             picked = label
         ctx.focus = picked
+    # The grass region of the field the questions are about (tools then include it).
+    if ctx.focus == "screen" or (ctx.focus is None and screen is not None):
+        ctx.grass_region = regions.resolve(body.region, screen["geometry"])
+    elif ctx.focus:
+        ctx.grass_region = regions.resolve(body.region, ctx.fields[ctx.focus]["geometry"])
     try:
         return assistant.ask(question, ctx, photo=photo)
     except assistant.AssistantError as e:

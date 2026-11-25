@@ -19,6 +19,9 @@
  * Round 3: "Save" and "Analyze" are two separate buttons. Save keeps the outline + excluded areas
  * under a name in My Fields (no dates, no analysis: POST /api/fields); Analyze never saves.
  * "Show on map" keeps the current dates, so Analyze works right after it.
+ * Grass regions (2026-11-25): a drawn field's US grass region is detected from its location
+ * (turfRegions.js, approximate) and can be changed; it is sent to the analysis and Ask AI.
+ * Only Region 3 (Denver-area fields) is validated; elsewhere a "not validated" notice is shown.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapView from './MapView.jsx';
@@ -36,6 +39,7 @@ import { Icon, Logo } from './Icons.jsx';
 import { Link, navigate } from './router.jsx';
 import Modal from './Modal.jsx';
 import { OUTSIDE_COLORADO_MESSAGE, isInColorado, polygonCenter } from './region.js';
+import { DATA as REGION_DATA, REGIONS, VALIDATED_REGION, regionById, regionOfPolygon, regionStatus } from './turfRegions.js';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut, saveField } from './api.js';
 import { checkPolygon } from './polygonCheck.js';
 
@@ -105,6 +109,8 @@ export default function App() {
   const [replaceAsk, setReplaceAsk] = useState(null); // {name, ids} or null
   const [regionWarning, setRegionWarning] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Grass region chosen by the user (null = use the one detected from the field's location).
+  const [regionChoice, setRegionChoice] = useState(null);
   const [saveMessage, setSaveMessage] = useState('');
 
   // Layout only (UI redesign): which tab is shown, the account menu, and the panel/sheet.
@@ -190,6 +196,7 @@ export default function App() {
   }, []);
   const handlePolygonChange = useCallback((newPolygon) => {
     setPolygon(newPolygon);
+    setRegionChoice(null); // a new outline: detect its region again
     forgetResults();
   }, [forgetResults]);
   const handleExclusionsChange = useCallback((newExclusions) => {
@@ -215,7 +222,7 @@ export default function App() {
     setError('');
     try {
       const exclude = exclusions.map((shape) => shape.geojson);
-      const data = await analyzeArea(polygon.geojson, exclude, start, end, '', false);
+      const data = await analyzeArea(polygon.geojson, exclude, start, end, '', false, fieldRegion);
       if (thisRequest === requestCount.current) setResult(data);
     } catch (e) {
       if (thisRequest === requestCount.current) setError(e.message);
@@ -254,6 +261,19 @@ export default function App() {
 
   const excludeShapes = exclusions.map((shape) => shape.geojson);
   const today = new Date().toLocaleDateString('en-CA');
+  const detectedRegion = polygon ? regionOfPolygon(polygon.geojson) : null;
+  const fieldRegion = regionChoice ?? detectedRegion;
+  // The region of a field picked in a drop-down ('map' or a saved id), for the AI notices.
+  const regionOfPick = (value) => (value === 'map' ? fieldRegion : regionOfPolygon(savedField(value)?.geometry));
+  function notValidatedNotice(regionId) {
+    if (!regionId || regionId === VALIDATED_REGION) return null;
+    return (
+      <p className="notice notice-warn">
+        ⚠ This field is in Region {regionId}: {regionById(regionId).name}. The AI model was trained only on
+        Denver-area fields (Region 3), so it is not validated for this region yet.
+      </p>
+    );
+  }
   const fieldOutsideColorado = polygon
     ? !isInColorado(polygonCenter(polygon.geojson).lat, polygonCenter(polygon.geojson).lon)
     : false;
@@ -472,6 +492,37 @@ export default function App() {
                         </div>
                       </div>
 
+                      <div className="region-box">
+                        {fieldRegion ? (
+                          <p>
+                            This field is in <strong>Region {fieldRegion}: {regionById(fieldRegion).name}</strong>
+                            {regionChoice ? ' (changed by you)' : ' (detected from its location)'}.{' '}
+                            <span className={`region-chip ${fieldRegion === VALIDATED_REGION ? 'ok' : 'soon'}`}>
+                              {regionStatus(fieldRegion)}
+                            </span>
+                          </p>
+                        ) : (
+                          <p>This field is outside the mapped US grass regions.</p>
+                        )}
+                        {fieldRegion && fieldRegion !== VALIDATED_REGION && (
+                          <p className="notice notice-warn">⚠ {REGION_DATA.not_validated_note}</p>
+                        )}
+                        <label className="field-name">
+                          Wrong region? Change it
+                          <select
+                            value={regionChoice ?? ''}
+                            onChange={(e) => setRegionChoice(e.target.value ? Number(e.target.value) : null)}
+                          >
+                            <option value="">
+                              Detected automatically{detectedRegion ? ` (Region ${detectedRegion})` : ''}
+                            </option>
+                            {REGIONS.map((r) => (
+                              <option key={r.id} value={r.id}>Region {r.id}: {r.name}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <p className="muted">Region boundaries are approximate.</p>
+                      </div>
                       {fieldOutsideColorado && (
                         <p className="notice notice-warn">⚠ {OUTSIDE_COLORADO_MESSAGE}</p>
                       )}
@@ -701,6 +752,7 @@ export default function App() {
                       fields={myFields}
                       mapAvailable={Boolean(result && polygon)}
                     />
+                    {notValidatedNotice(regionOfPick(checkField))}
                     {checkField === 'map' ? (
                       result && polygon ? (
                         <AIWeatherCheck
@@ -734,6 +786,7 @@ export default function App() {
                       fields={myFields}
                       mapAvailable={Boolean(check?.ok && !editing)}
                     />
+                    {notValidatedNotice(regionOfPick(whatIfField))}
                     <WhatIf
                       geometry={whatIfField === 'map'
                         ? (check?.ok && !editing ? polygon.geojson : null)
@@ -768,6 +821,7 @@ export default function App() {
                     <AskSpectralTurf
                       key="map"
                       field="screen"
+                      region={fieldRegion}
                       fieldLabel="the field on the map"
                       geometry={polygon.geojson}
                       exclude={excludeShapes}
@@ -780,6 +834,7 @@ export default function App() {
                     <AskSpectralTurf
                       key={`saved-${askField}`}
                       field={askField}
+                      region={regionOfPick(askField)}
                       fieldLabel={pickedName(askField)}
                       geometry={null}
                       exclude={[]}
