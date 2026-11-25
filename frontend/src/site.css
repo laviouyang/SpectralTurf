@@ -799,7 +799,7 @@ button.nav-toggle:hover:not(:disabled) {
 .region-us-outline {
   fill: none;
   stroke: var(--dark);
-  stroke-width: 1.2;
+  stroke-width: 1.6;
   pointer-events: none;
 }
 .region-shape {
@@ -826,15 +826,15 @@ button.nav-toggle:hover:not(:disabled) {
   pointer-events: none;
 }
 .region-number {
-  font: 700 12px var(--font-body);
+  font: 700 19px var(--font-body);
   fill: var(--dark);
 }
 .region-name {
-  font: 600 10px var(--font-body);
+  font: 600 16px var(--font-body);
   paint-order: stroke;
 }
 .region-status {
-  font: 500 8.5px var(--font-body);
+  font: 500 13.5px var(--font-body);
 }
 .region-info {
   padding: var(--s2);
@@ -919,4 +919,21 @@ button.nav-toggle:hover:not(:disabled) {
   .region-map-grid {
     grid-template-columns: 1fr;
   }
+}
+/* Version 2b: state lines and the source line under the map */
+.region-state-lines {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 0.8;
+  stroke-opacity: 0.75;
+  pointer-events: none;
+}
+.region-shape path {
+  stroke-width: 2.2;
+}
+.region-credit {
+  margin-top: var(--s1);
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
 }

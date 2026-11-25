@@ -87,6 +87,16 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   Tests backend/test_regions.py 16/16 (21 cities). Checked in Chrome: map, click/keyboard, 390 px
   (no sideways scroll), app detect Village Greens -> Region 3, change -> Region 7 warning.
   NOT live-tested: a real analysis/Ask with a region (backend tested with fakes).
+  MAP REDO (2026-11-25, student: "the map isn't that accurate... copy the picture"): Claude did
+  NOT copy the company image; instead (a) real state shapes: U.S. Census via us-atlas 3.0.1
+  (devDependencies us-atlas, topojson-client, topojson-simplify, d3-geo; only used by
+  frontend/scripts/make_us_map.mjs -> src/usMap.json, Albers projection, AK/HI dropped, state
+  lines drawn); (b) region zones REDRAWN to follow the picture's layout (2 wraps west CO/WY;
+  6 = band NE NM/S KS/OK/MO/KY/VA/MD/NJ; 7 includes NC; 1 = WA/OR west of Cascades only; CA
+  coast = 5); (c) credit right under the map: "Region layout adapted from the 'Grass Types USA'
+  map by Simple Lawn Solutions (visual reference only)" + Census/us-atlas + extensions.
+  The old hand-drawn outline (us_outline) was removed. Re-run BOTH scripts after changing zones:
+  python scripts/make_turf_regions.py .  then  cd frontend; node scripts/make_us_map.mjs
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,

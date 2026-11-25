@@ -299,13 +299,16 @@ results and in Ask SpectralTurf: the satellite math is the same everywhere.
 | 6 | Transition zone | tall fescue, Kentucky bluegrass, perennial ryegrass, zoysiagrass, bermudagrass ([NC State TurfFiles](https://www.turffiles.ncsu.edu/grasses)) | Coming soon |
 | 7 | Southeast & Gulf Coast | St. Augustinegrass, bahiagrass, centipedegrass, zoysiagrass, bermudagrass ([UF/IFAS LH005](https://edis.ifas.ufl.edu/publication/LH005)) | Coming soon |
 
-* **Approximate boundaries, not an official map.** The split into cool-season, transition and
-  warm-season areas follows the zone maps of the
+* **Approximate boundaries, not an official map.** The region layout follows the "Grass Types USA"
+  map by Simple Lawn Solutions (a lawn-care company; used as a visual reference only, their image
+  is not used), redrawn by hand. State shapes: U.S. Census Bureau cartographic boundaries via
+  [us-atlas](https://github.com/topojson/us-atlas) (`frontend/scripts/make_us_map.mjs` ->
+  `frontend/src/usMap.json`). The split into cool-season, transition and warm-season areas matches
+  the zone maps of the
   [University of Maryland Extension](https://extension.umd.edu/resource/lawn-grasses-grown-maryland)
   and [Kansas State University](https://www.k-state.edu/news/turf/articles/2026/07/summer-turf-wars-battling-drought-heat-and-seasonal-pests-part-one-dought-and-heat-stress.html)
-  (its map shows "the approximate boundaries" of the transition zone). The finer split into 7
-  regions and the exact lines are this project's approximation. The map picture is original,
-  drawn from our own simplified coordinates (`scripts/make_turf_regions.py`).
+  (its map shows "the approximate boundaries" of the transition zone). Region zones:
+  `scripts/make_turf_regions.py`.
 * **Only Region 3 is validated**, with Denver-area fields: the healthy-turf baseline, the color
   cutoff and the AI model were made from them. Elsewhere the app shows "Not validated for this
   region yet"; the within-field check still works anywhere.
@@ -397,7 +400,8 @@ for the rectangle, so only pixels inside the drawn outline are analyzed.
 | `frontend/src/Results.jsx` | Inspection card, legends, numbers, data quality, limitations |
 | `frontend/src/leafletSetup.js` | Makes Leaflet available to the Leaflet.draw plugin |
 | `frontend/src/RegionMap.jsx`, `frontend/src/turfRegions.js(on)` | Homepage grass-region map; region detection for a drawn field |
-| `scripts/make_turf_regions.py` | Writes the region data (simplified outline + approximate region zones) |
+| `scripts/make_turf_regions.py` | Writes the region data (approximate region zones, grass lists, sources) |
+| `frontend/scripts/make_us_map.mjs` | Builds `src/usMap.json`: US Census state shapes + region zones on one Albers map projection |
 
 ---
 

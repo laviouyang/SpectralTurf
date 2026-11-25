@@ -186,14 +186,16 @@ export default function AboutPage() {
                 ))}
               </ul>
               <p>
-                <strong>How the map was made:</strong> it is a simplified map drawn for this project,
-                not an official USDA map, and the boundaries are approximate. The split into
-                cool-season, transition and warm-season areas follows the zone maps of the{' '}
+                <strong>How the map was made:</strong> a simplified map drawn for this project, not an
+                official USDA map, and the boundaries are approximate. The region layout follows the
+                &ldquo;Grass Types USA&rdquo; map by Simple Lawn Solutions (a lawn-care company, so a
+                visual reference rather than a scientific source), redrawn by hand on U.S. Census state
+                shapes (via us-atlas). The split into cool-season, transition and warm-season areas
+                matches the zone maps of the{' '}
                 <a href={REGION_DATA.sources.framework[0].url} target="_blank" rel="noreferrer">University of Maryland Extension</a>
                 {' '}and{' '}
                 <a href={REGION_DATA.sources.framework[1].url} target="_blank" rel="noreferrer">Kansas State University</a>
-                ; the finer split into 7 regions and the exact lines are our approximation. Each
-                region&apos;s grass list comes from a university extension in that region.
+                . Each region&apos;s grass list comes from a university extension in that region.
               </p>
             </section>
 

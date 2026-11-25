@@ -1,13 +1,15 @@
 /*
  * RegionMap.jsx - Homepage "US grass regions" map (added 2026-11-25; replaces the state picker).
  *
- * An ORIGINAL, simplified SVG drawn from our own coordinates (turfRegions.json): each region
- * zone is clipped to a simplified outline of the 48 states. Click (or tab to) a region to see
- * its common grasses. Only Region 3 (Denver-area fields) is validated; the rest are "Coming soon".
- * Boundaries are approximate. Sources are listed under the map.
+ * Our own SVG drawing: US state shapes from U.S. Census data (usMap.json, built by
+ * scripts/make_us_map.mjs) with our hand-drawn, approximate region zones clipped to them. The
+ * region LAYOUT follows the "Grass Types USA" map by Simple Lawn Solutions (credited under the
+ * map; their picture itself is not used). Click (or tab to) a region to see its common grasses.
+ * Only Region 3 (Denver-area fields) is validated; the rest are "Coming soon".
  */
 import { useState } from 'react';
 import { DATA, REGIONS, VALIDATED_REGION } from './turfRegions.js';
+import MAP from './usMap.json';
 
 // Region colors (brand palette and tints) and the label text color that reads on each.
 const STYLE = {
@@ -20,12 +22,6 @@ const STYLE = {
   7: { fill: '#d98a66', ink: '#0b2b2f' },
 };
 
-// Simple map projection: longitude/latitude -> SVG x/y (longitude shrunk by cos 38°, mid-US).
-const SCALE = 12;
-// (130 °W at the left edge leaves room for Region 1's label over the ocean.)
-const project = ([lon, lat]) => [(lon + 130) * 0.788 * SCALE, (49.6 - lat) * SCALE];
-const toPath = (points) => `M${points.map((p) => project(p).map((v) => v.toFixed(1)).join(',')).join('L')}Z`;
-const OUTLINE = toPath(DATA.us_outline);
 
 function statusText(id) {
   return id === VALIDATED_REGION ? 'Validated' : 'Coming soon';
@@ -41,18 +37,18 @@ export default function RegionMap() {
     <div className="region-map">
       <div className="region-map-grid">
         <figure className="region-figure">
-          <svg viewBox="0 0 604 304" role="group" aria-label="Map of 7 US grass regions. Select a region for its grasses.">
+          <svg viewBox={`0 0 ${MAP.width} ${MAP.height}`} role="group" aria-label="Map of 7 US grass regions. Select a region for its grasses.">
             <defs>
               <clipPath id="us-outline-clip">
-                <path d={OUTLINE} />
+                <path d={MAP.nation} />
               </clipPath>
-              <pattern id="coming-soon-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                <line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" strokeWidth="1.4" strokeOpacity="0.45" />
+              <pattern id="coming-soon-hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="9" stroke="#ffffff" strokeWidth="2" strokeOpacity="0.45" />
               </pattern>
             </defs>
-            <path d={OUTLINE} className="region-us-shadow" />
+            <path d={MAP.nation} className="region-us-shadow" />
             {REGIONS.map((r) => {
-              const d = toPath(r.zone.coordinates[0]);
+              const d = MAP.zones[r.id];
               const active = r.id === (hovered ?? selected);
               return (
                 <g
@@ -81,28 +77,31 @@ export default function RegionMap() {
                 </g>
               );
             })}
-            <path d={OUTLINE} className="region-us-outline" />
+            <path d={MAP.borders} className="region-state-lines" />
+            <path d={MAP.nation} className="region-us-outline" />
             {REGIONS.map((r) => {
-              const [x, y] = project(r.label);
+              const [x, y] = MAP.labels[r.id];
               // Region 1 is a thin strip: its name sits just left of the circle, over the ocean.
               const anchor = r.id === 1 ? 'end' : 'middle';
-              const tx = r.id === 1 ? x + 8 : x;
+              const tx = r.id === 1 ? x + 12 : x;
               return (
                 <g key={r.id} className="region-label" aria-hidden="true">
-                  <circle cx={x} cy={y} r="11" fill="#ffffff" stroke={STYLE[r.id].fill} strokeWidth="2.5" />
-                  <text x={x} y={y + 4} textAnchor="middle" className="region-number">{r.id}</text>
-                  <text x={tx} y={y + 24} textAnchor={anchor} className="region-name" fill={STYLE[r.id].ink}>
+                  <circle cx={x} cy={y} r="17" fill="#ffffff" stroke={STYLE[r.id].fill} strokeWidth="3.5" />
+                  <text x={x} y={y + 6.5} textAnchor="middle" className="region-number">{r.id}</text>
+                  <text x={tx} y={y + 37} textAnchor={anchor} className="region-name" fill={STYLE[r.id].ink}>
                     {r.short}
                   </text>
-                  <text x={tx} y={y + 35} textAnchor={anchor} className="region-status" fill={STYLE[r.id].ink}>
+                  <text x={tx} y={y + 54} textAnchor={anchor} className="region-status" fill={STYLE[r.id].ink}>
                     {statusText(r.id)}
                   </text>
                 </g>
               );
             })}
           </svg>
-          <figcaption className="muted">
-            Simplified map drawn for SpectralTurf. Boundaries are approximate. Striped = coming soon.
+          <figcaption className="region-credit">
+            <strong>Source:</strong> {DATA.sources.layout.name}. {DATA.sources.states.name} (
+            <a href={DATA.sources.states.url} target="_blank" rel="noreferrer">us-atlas</a>). Grass lists:
+            university extensions (shown for each region). Boundaries are approximate; striped = coming soon.
           </figcaption>
         </figure>
 
@@ -156,15 +155,17 @@ export default function RegionMap() {
           ))}
         </ol>
         <p className="muted">
-          How the regions were drawn: a simplified project map, not an official USDA map. The split
-          into cool-season, transition and warm-season areas follows{' '}
+          How the regions were drawn: a simplified map, not an official USDA map. The region layout
+          follows the &ldquo;Grass Types USA&rdquo; map by Simple Lawn Solutions (a lawn-care company, so a
+          visual reference rather than a scientific source), redrawn by hand on U.S. Census state shapes.
+          The split into cool-season, transition and warm-season areas matches{' '}
           {DATA.sources.framework.map((s, i) => (
             <span key={s.url}>
               {i > 0 && ' and '}
               <a href={s.url} target="_blank" rel="noreferrer">{s.name}</a>
             </span>
           ))}
-          ; the finer split into 7 regions and the exact lines are our approximation.
+          ; the exact lines are approximate.
         </p>
       </details>
     </div>
