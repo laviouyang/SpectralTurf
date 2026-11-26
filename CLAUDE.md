@@ -97,6 +97,12 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   map by Simple Lawn Solutions (visual reference only)" + Census/us-atlas + extensions.
   The old hand-drawn outline (us_outline) was removed. Re-run BOTH scripts after changing zones:
   python scripts/make_turf_regions.py .  then  cd frontend; node scripts/make_us_map.mjs
+- STAGE 11 PHOTO AI (2026-11-25, student request): PLAN ONLY, nothing built. docs/STAGE_11_PHOTO_AI.md
+  (CLIP + logistic regression baseline on CPU, then Colab fine-tune; split BY SITE; Unsure cutoff
+  chosen on CV, never on test). photo_data/<6 label folders> local only; git tracks only
+  photo_data/README.md + metadata.csv header (.gitignore photo_data/* with ! exceptions).
+  OPEN DECISION: disease/insect labels conflict with the "no diagnosis" rule -> research-only or
+  "looks most similar to... not a diagnosis" wording; ask the student before any app step.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,

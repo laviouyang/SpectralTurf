@@ -21,3 +21,9 @@ backend/ai_cache/
 
 # Reference images from other websites (NOT ours to publish; never commit)
 References/
+
+# Stage 11: turf photos - never commit photos until each license is checked.
+# Only the README and the metadata.csv template are tracked.
+photo_data/*
+!photo_data/README.md
+!photo_data/metadata.csv
