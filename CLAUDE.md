@@ -109,6 +109,16 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   docs/disease_references.csv (57 rows, own-words symptoms, permission "not asked") +
   ml_photo/class_descriptions.md (CLIP prompts). Plan folder renamed photo_ai/ -> ml_photo/.
   No images extracted.
+  STAGE 11 v1 TRAINED (2026-11-25): ml_photo/check_dataset.py (split BY GROUP = site > recording time
+  in file name > source article; fewest-group class picks first; <30/class = warning only, student
+  request) -> photo_data/split.csv; ml_photo/train_v1.py (CLIP ViT-B/32 CPU, torch/transformers in
+  backend venv but NOT requirements.txt; embeddings cache ml_photo/cache/, model ml_photo/model/ both
+  git-ignored). Student asked to put ALL insect-PDF images in insect_damage (59: mostly insect
+  close-ups/weeds/cereal crops, named ref_<kind>_NNN.jpg). RESULTS (test, results_v1.md): baseline 41.7%;
+  zero-shot 2.9% (predicts fungal for almost all); logreg 90.0% acc / 69.3% balanced, Uncertain 27.4%
+  (cutoff 0.75 from train CV), 97.1% on answered. Each class = a different photo source -> likely
+  learns the source; wear/dormant 2 test photos each. healthy/drought = robot-camera video frames
+  2022-10-18 with no metadata rows; photo_data/grass/ (660) not a class.
   OPEN DECISION: disease/insect labels conflict with the "no diagnosis" rule -> research-only or
   "looks most similar to... not a diagnosis" wording; ask the student before any app step.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of

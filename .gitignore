@@ -30,3 +30,7 @@ photo_data/*
 
 # Reference PDFs (other people's copyrighted articles; never commit)
 reference_articles/
+
+# Stage 11: CLIP embedding cache + trained photo model (made from photos whose licenses are not checked)
+ml_photo/cache/
+ml_photo/model/

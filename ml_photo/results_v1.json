@@ -1,0 +1,546 @@
+{
+ "date": "2026-11-25",
+ "clip": "openai/clip-vit-base-patch32",
+ "counts": {
+  "healthy": {
+   "total": 700,
+   "train": 542,
+   "test": 158,
+   "groups": 12
+  },
+  "drought": {
+   "total": 671,
+   "train": 477,
+   "test": 194,
+   "groups": 5
+  },
+  "fungal_disease": {
+   "total": 37,
+   "train": 29,
+   "test": 8,
+   "groups": 28
+  },
+  "insect_damage": {
+   "total": 59,
+   "train": 44,
+   "test": 15,
+   "groups": 16
+  },
+  "wear": {
+   "total": 10,
+   "train": 8,
+   "test": 2,
+   "groups": 1
+  },
+  "dormant": {
+   "total": 10,
+   "train": 8,
+   "test": 2,
+   "groups": 1
+  }
+ },
+ "split_methods": {
+  "dormant: WEAK: one group, split by file order": 10,
+  "drought: by group": 671,
+  "fungal_disease: by group": 37,
+  "healthy: by group": 700,
+  "insect_damage: by group": 59,
+  "wear: WEAK: one group, split by file order": 10
+ },
+ "prompts_per_class": {
+  "healthy": 2,
+  "drought": 3,
+  "fungal_disease": 40,
+  "insect_damage": 8,
+  "wear": 2,
+  "dormant": 2
+ },
+ "zero_shot": {
+  "n_test": 379,
+  "accuracy": 0.029023746701846966,
+  "balanced_accuracy": 0.1897479954180985,
+  "per_class": {
+   "healthy": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 158
+   },
+   "drought": {
+    "precision": 0.3333333333333333,
+    "recall": 0.005154639175257732,
+    "f1": 0.01015228426395939,
+    "n_test": 194
+   },
+   "fungal_disease": {
+    "precision": 0.021447721179624665,
+    "recall": 1.0,
+    "f1": 0.04199475065616798,
+    "n_test": 8
+   },
+   "insect_damage": {
+    "precision": 1.0,
+    "recall": 0.13333333333333333,
+    "f1": 0.23529411764705882,
+    "n_test": 15
+   },
+   "wear": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 2
+   },
+   "dormant": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 2
+   }
+  },
+  "confusion": [
+   [
+    0,
+    0,
+    157,
+    0,
+    1,
+    0
+   ],
+   [
+    0,
+    1,
+    193,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    8,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    2,
+    11,
+    2,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    2,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    2,
+    0,
+    0,
+    0
+   ]
+  ],
+  "cutoff": 0.95,
+  "uncertain_count": 369,
+  "uncertain_rate": 0.9736147757255936,
+  "answered_accuracy": 0.4,
+  "accuracy_counting_uncertain_as_wrong": 0.010554089709762533,
+  "answered_per_class_recall": {
+   "healthy": 0.0,
+   "drought": 0.0,
+   "fungal_disease": 0.5,
+   "insect_damage": 0.0,
+   "wear": 0.0,
+   "dormant": 0.0
+  }
+ },
+ "zero_shot_cutoff_table_train": [
+  {
+   "cutoff": 0.3,
+   "answered": 1.0,
+   "answered_accuracy": 0.029783393501805054
+  },
+  {
+   "cutoff": 0.35,
+   "answered": 1.0,
+   "answered_accuracy": 0.029783393501805054
+  },
+  {
+   "cutoff": 0.4,
+   "answered": 0.9972924187725631,
+   "answered_accuracy": 0.02895927601809955
+  },
+  {
+   "cutoff": 0.45,
+   "answered": 0.9945848375451264,
+   "answered_accuracy": 0.029038112522686024
+  },
+  {
+   "cutoff": 0.5,
+   "answered": 0.9891696750902527,
+   "answered_accuracy": 0.02737226277372263
+  },
+  {
+   "cutoff": 0.55,
+   "answered": 0.9855595667870036,
+   "answered_accuracy": 0.02564102564102564
+  },
+  {
+   "cutoff": 0.6,
+   "answered": 0.9792418772563177,
+   "answered_accuracy": 0.025806451612903226
+  },
+  {
+   "cutoff": 0.65,
+   "answered": 0.9756317689530686,
+   "answered_accuracy": 0.025901942645698426
+  },
+  {
+   "cutoff": 0.7,
+   "answered": 0.9684115523465704,
+   "answered_accuracy": 0.02516309412861137
+  },
+  {
+   "cutoff": 0.75,
+   "answered": 0.9467509025270758,
+   "answered_accuracy": 0.025738798856053385
+  },
+  {
+   "cutoff": 0.8,
+   "answered": 0.8971119133574007,
+   "answered_accuracy": 0.026156941649899398
+  },
+  {
+   "cutoff": 0.85,
+   "answered": 0.7680505415162455,
+   "answered_accuracy": 0.02937720329024677
+  },
+  {
+   "cutoff": 0.9,
+   "answered": 0.4602888086642599,
+   "answered_accuracy": 0.0392156862745098
+  },
+  {
+   "cutoff": 0.95,
+   "answered": 0.05415162454873646,
+   "answered_accuracy": 0.21666666666666667
+  }
+ ],
+ "zero_shot_target_reached": false,
+ "logreg": {
+  "n_test": 379,
+  "accuracy": 0.899736147757256,
+  "balanced_accuracy": 0.6933591427784304,
+  "per_class": {
+   "healthy": {
+    "precision": 0.9921875,
+    "recall": 0.8037974683544303,
+    "f1": 0.8881118881118881,
+    "n_test": 158
+   },
+   "drought": {
+    "precision": 0.8571428571428571,
+    "recall": 0.9896907216494846,
+    "f1": 0.9186602870813397,
+    "n_test": 194
+   },
+   "fungal_disease": {
+    "precision": 0.8,
+    "recall": 1.0,
+    "f1": 0.8888888888888888,
+    "n_test": 8
+   },
+   "insect_damage": {
+    "precision": 1.0,
+    "recall": 0.8666666666666667,
+    "f1": 0.9285714285714286,
+    "n_test": 15
+   },
+   "wear": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 2
+   },
+   "dormant": {
+    "precision": 0.5,
+    "recall": 0.5,
+    "f1": 0.5,
+    "n_test": 2
+   }
+  },
+  "confusion": [
+   [
+    127,
+    31,
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    1,
+    192,
+    0,
+    0,
+    1,
+    0
+   ],
+   [
+    0,
+    0,
+    8,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    1,
+    0,
+    13,
+    1,
+    0
+   ],
+   [
+    0,
+    0,
+    1,
+    0,
+    0,
+    1
+   ],
+   [
+    0,
+    0,
+    1,
+    0,
+    0,
+    1
+   ]
+  ],
+  "cutoff": 0.75,
+  "uncertain_count": 104,
+  "uncertain_rate": 0.27440633245382584,
+  "answered_accuracy": 0.9709090909090909,
+  "accuracy_counting_uncertain_as_wrong": 0.7044854881266491,
+  "answered_per_class_recall": {
+   "healthy": 0.4873417721518987,
+   "drought": 0.8865979381443299,
+   "fungal_disease": 0.5,
+   "insect_damage": 0.8666666666666667,
+   "wear": 0.0,
+   "dormant": 0.5
+  }
+ },
+ "logreg_cv": [
+  {
+   "C": 0.01,
+   "cv_balanced_accuracy": 0.8038845176458705
+  },
+  {
+   "C": 0.1,
+   "cv_balanced_accuracy": 0.8329697543909648
+  },
+  {
+   "C": 1,
+   "cv_balanced_accuracy": 0.836116488974377
+  },
+  {
+   "C": 10,
+   "cv_balanced_accuracy": 0.8487537173975869
+  },
+  {
+   "C": 100,
+   "cv_balanced_accuracy": 0.8432057688363402
+  }
+ ],
+ "logreg_C": 10,
+ "logreg_cutoff_table_train_cv": [
+  {
+   "cutoff": 0.3,
+   "answered": 0.9963898916967509,
+   "answered_accuracy": 0.8106884057971014
+  },
+  {
+   "cutoff": 0.35,
+   "answered": 0.9918772563176895,
+   "answered_accuracy": 0.8116469517743403
+  },
+  {
+   "cutoff": 0.4,
+   "answered": 0.9819494584837545,
+   "answered_accuracy": 0.8125
+  },
+  {
+   "cutoff": 0.45,
+   "answered": 0.9250902527075813,
+   "answered_accuracy": 0.817560975609756
+  },
+  {
+   "cutoff": 0.5,
+   "answered": 0.8375451263537906,
+   "answered_accuracy": 0.8394396551724138
+  },
+  {
+   "cutoff": 0.55,
+   "answered": 0.7391696750902527,
+   "answered_accuracy": 0.8473748473748474
+  },
+  {
+   "cutoff": 0.6,
+   "answered": 0.6308664259927798,
+   "answered_accuracy": 0.8612303290414879
+  },
+  {
+   "cutoff": 0.65,
+   "answered": 0.5243682310469314,
+   "answered_accuracy": 0.8743545611015491
+  },
+  {
+   "cutoff": 0.7,
+   "answered": 0.41696750902527074,
+   "answered_accuracy": 0.8874458874458875
+  },
+  {
+   "cutoff": 0.75,
+   "answered": 0.2951263537906137,
+   "answered_accuracy": 0.9204892966360856
+  },
+  {
+   "cutoff": 0.8,
+   "answered": 0.1967509025270758,
+   "answered_accuracy": 0.926605504587156
+  },
+  {
+   "cutoff": 0.85,
+   "answered": 0.10830324909747292,
+   "answered_accuracy": 0.95
+  },
+  {
+   "cutoff": 0.9,
+   "answered": 0.036101083032490974,
+   "answered_accuracy": 1.0
+  },
+  {
+   "cutoff": 0.95,
+   "answered": 0.01444043321299639,
+   "answered_accuracy": 1.0
+  }
+ ],
+ "logreg_target_reached": true,
+ "baseline_most_common": {
+  "class": "healthy",
+  "n_test": 379,
+  "accuracy": 0.41688654353562005,
+  "balanced_accuracy": 0.16666666666666666,
+  "per_class": {
+   "healthy": {
+    "precision": 0.41688654353562005,
+    "recall": 1.0,
+    "f1": 0.5884543761638734,
+    "n_test": 158
+   },
+   "drought": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 194
+   },
+   "fungal_disease": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 8
+   },
+   "insect_damage": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 15
+   },
+   "wear": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 2
+   },
+   "dormant": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "n_test": 2
+   }
+  },
+  "confusion": [
+   [
+    158,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    194,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    8,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    15,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    2,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    2,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  ],
+  "cutoff": 0.0,
+  "uncertain_count": 0,
+  "uncertain_rate": 0.0,
+  "answered_accuracy": 0.41688654353562005,
+  "accuracy_counting_uncertain_as_wrong": 0.41688654353562005,
+  "answered_per_class_recall": {
+   "healthy": 1.0,
+   "drought": 0.0,
+   "fungal_disease": 0.0,
+   "insect_damage": 0.0,
+   "wear": 0.0,
+   "dormant": 0.0
+  }
+ }
+}
