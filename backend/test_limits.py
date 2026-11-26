@@ -121,8 +121,9 @@ with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as folder:
 
     chat = [client.post("/api/ai/ask", json={"question": "Hi"}).status_code for _ in range(2)]
     chat_user = [client.post("/api/ai/ask", json={"question": "Hi"}, headers=auth).status_code for _ in range(3)]
-    check("17. chatbot messages have their own daily limit (visitor 1, user 2)",
-          chat == [200, 429] and chat_user == [200, 200, 429])
+    # Visitors can't chat at all since 2026-11-25 (Version 2: login required) -> 401, not counted.
+    check("17. chatbot messages have their own daily limit (user 2; visitors need to log in)",
+          chat == [401, 401] and chat_user == [200, 200, 429])
     check("18. other pages are never limited (health)",
           all(client.get("/api/health").status_code == 200 for _ in range(30)))
 

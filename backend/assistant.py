@@ -98,7 +98,10 @@ Rules (always follow them):
    or where it was taken. Describe only what is plainly visible (green, yellow or brown areas, bare or
    worn spots, standing water, lines) in plain words, and suggest where to look in person. Never name
    a disease, pest or cause from a photo, never estimate NDVI or any other number from it, and do not
-   count things in it. Satellite numbers still come only from the tools."""
+   count things in it. Satellite numbers still come only from the tools.
+12. If a tool result has "grass_region", mention the field's region (number and name) once, and say
+   whether SpectralTurf is validated there. If it is not validated, say the baseline, color cutoff
+   and AI model were made from Denver-area fields, so those results may not be accurate there."""
 
 
 class AssistantError(Exception):
@@ -151,8 +154,13 @@ class Context:
     analyze_screen: function that runs the normal analysis for the field on screen (or None).
     as_of:          the date questions are answered for."""
 
-    def __init__(self, logged_in, saved, screen, analyze_screen, as_of):
+    def __init__(self, logged_in, saved, screen, analyze_screen, as_of, focus=None):
         self.logged_in = logged_in
+        # Version 2 (2026-11-25): the ONE field the user picked ("screen" or "field-N"), or None.
+        # When set, the tools refuse every other field, so answers are about that field only.
+        self.focus = focus
+        # Added 2026-11-25: the grass region (regions.describe) of the field the questions are about.
+        self.grass_region = None
         self.saved = saved if logged_in else []
         self.screen = screen
         self.analyze_screen = analyze_screen
@@ -168,6 +176,8 @@ class Context:
     def find(self, field_id):
         """The field for a tool, ONLY from this user's own fields or the field on screen."""
         field_id = str(field_id or "").strip().lower()
+        if self.focus and field_id != self.focus:
+            raise ToolDataError(f"The user picked one field ('{self.focus}'). Only that field can be used.")
         if field_id == "screen":
             if not self.screen:
                 raise ToolDataError("No field is drawn on the map.")
@@ -179,6 +189,16 @@ class Context:
             raise ToolDataError(f"There is no field '{field_id}' in your fields. "
                                 f"Your fields: {', '.join(self.fields) or 'none saved yet'}.")
         return field_id, field["geometry"], field["exclusions"]
+
+    def label_for_saved_id(self, saved_id):
+        """Version 2: the 'field-N' label of one of THIS user's saved analyses (by its id), or None."""
+        for s in self.saved:
+            if s["id"] == saved_id:
+                key = json.dumps([s["geometry"], s["exclusions"]], sort_keys=True)
+                for label, f in self.fields.items():
+                    if json.dumps([f["geometry"], f["exclusions"]], sort_keys=True) == key:
+                        return label
+        return None
 
     def saved_for(self, field_id):
         """This user's saved analyses of one field (same outline + exclusions), newest first."""
@@ -240,6 +260,10 @@ def analysis_facts(result):
 def saved_facts(item):
     """One saved analysis (summary only; the backend computed it when it was saved)."""
     s = item["summary"]
+    if s.get("status") == "not_analyzed":  # Version 2: saved with "Save" only, no measurement
+        return {"kind": "saved outline only", "status": "not_analyzed",
+                "explanation": "This field was saved without an analysis, so there are no saved measurements. "
+                        "Use the satellite history or the AI weather check for numbers."}
     facts = {
         "kind": "observation",
         "image_date": item["observation_date"],
@@ -266,6 +290,16 @@ _screen_cache = {}  # analysis of the field on screen, so repeated questions don
 
 
 def tool_get_my_fields(ctx, args):
+    if ctx.focus:  # Version 2: the user picked one field; only that one is listed
+        if ctx.focus == "screen":
+            entry = {"field_id": "screen", "what": "the field drawn on the map now (not necessarily saved)"}
+        else:
+            saves = ctx.saved_for(ctx.focus)
+            entry = {"field_id": ctx.focus, "saved_analyses": len(saves),
+                     "latest_image_date": saves[0]["observation_date"] if saves else None,
+                     "latest_inspection_headline": saves[0]["summary"].get("inspection_headline") if saves else None}
+        return {"logged_in": ctx.logged_in, "fields": [entry],
+                "note": "The user picked this one field. Answer only about it."}
     fields = [{"field_id": "screen", "what": "the field drawn on the map now (not necessarily saved)"}] \
         if ctx.screen else []
     if not ctx.logged_in:
@@ -342,6 +376,9 @@ def check_facts(check):
 
 
 def tool_get_ranking(ctx, args):
+    if ctx.focus:
+        raise ToolDataError(f"The user picked one field ('{ctx.focus}'), so there is no ranking of "
+                            "several fields. Use the other tools for this field.")
     if not ctx.logged_in:
         raise ToolDataError("Not logged in: the ranking needs saved fields. Only the field on screen "
                             "('screen') can be used; log in and analyze fields to rank them.")
@@ -408,9 +445,12 @@ def run_tool(name, args, ctx):
     if name not in TOOLS:
         return {"error": f"Unknown tool '{name}'."}
     try:
-        return TOOLS[name][0](ctx, args or {})
+        result = TOOLS[name][0](ctx, args or {})
     except (ToolDataError, predict.PredictError) as e:
         return {"error": str(e)}
+    if ctx.grass_region and isinstance(result, dict):  # added 2026-11-25: region + validated or not
+        result["grass_region"] = ctx.grass_region
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -584,7 +624,11 @@ def ask(question, ctx, call=None, photo=None):
     who = "logged in" if ctx.logged_in else "not logged in"
     screen = "a field is drawn on the map ('screen')" if ctx.screen else "no field is drawn on the map"
     attached = "; the user attached a photo (not a measurement, see rule 11)" if photo else ""
-    intro = f"[Context: the user is {who}; {screen}; answer as of {ctx.as_of.isoformat()}{attached}.]\n"
+    picked = f"; the user picked ONE field ('{ctx.focus}'): answer only about that field" if ctx.focus else ""
+    if ctx.grass_region:  # added 2026-11-25 (rule 12)
+        picked += (f"; the field is in grass {ctx.grass_region['label']} "
+                   f"({ctx.grass_region['status']})")
+    intro = f"[Context: the user is {who}; {screen}{picked}; answer as of {ctx.as_of.isoformat()}{attached}.]\n"
     contents = [{"role": "user", "parts": [{"text": intro + question}]}]
     if photo:
         contents[0]["parts"].append({"inlineData": {"mimeType": "image/jpeg", "data": photo}})

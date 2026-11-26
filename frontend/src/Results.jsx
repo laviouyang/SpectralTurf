@@ -2,6 +2,8 @@
  * Results.jsx - Everything the user sees after an analysis:
  * inspection indicator, map layer choice + legend, the numbers, what they mean,
  * data quality, and limitations.
+ * UI redesign (2026-11-23): big key numbers at the top, and each part is a card you can
+ * open or close. The wording and the numbers shown are the same as before.
  */
 
 const LAYERS = [
@@ -146,6 +148,39 @@ export default function Results({ result, layer, onLayerChange }) {
   return (
     <div className="results">
       <h3>Results</h3>
+      {/* Added 2026-11-25: the field's grass region and whether SpectralTurf is validated there. */}
+      {result.grass_region && (
+        <div className={`notice ${result.grass_region.validated ? 'notice-info' : 'notice-warn'} region-result`}>
+          <strong>Grass {result.grass_region.label}</strong> · {result.grass_region.status}
+          <br />
+          <span>{result.grass_region.note}</span>
+          <br />
+          <span className="muted">Region boundaries are approximate.</span>
+        </div>
+      )}
+      {/* Key numbers. NDVI/NDMI are only shown when there is enough clear data (same rule as the table). */}
+      <div className="key-numbers">
+        <div className="key-number">
+          <span className="key-value">{observation.date}</span>
+          <span className="key-label">image date</span>
+        </div>
+        {enoughData && (
+          <div className="key-number">
+            <span className="key-value">{ndvi.median}</span>
+            <span className="key-label">NDVI median (greenness)</span>
+          </div>
+        )}
+        {enoughData && (
+          <div className="key-number">
+            <span className="key-value">{ndmi.median}</span>
+            <span className="key-label">NDMI median (moisture, 20 m)</span>
+          </div>
+        )}
+        <div className="key-number">
+          <span className="key-value">{Math.floor(pixels.valid_fraction * 100)}%</span>
+          <span className="key-label">clear pixels</span>
+        </div>
+      </div>
       <p>
         <strong>Observation date: {observation.date}</strong>
         <br />
@@ -158,6 +193,8 @@ export default function Results({ result, layer, onLayerChange }) {
       <InspectionCard inspection={result.inspection} onShowOnMap={() => onLayerChange('inspection')} />
 
       {/* ---- Map layer choice and legend ---- */}
+      <section className="card">
+      <h4 className="card-title">Map layer</h4>
       <div className="layer-choice" role="radiogroup" aria-label="Map layer">
         {LAYERS.map(({ id, label }) => (
           <label key={id}>
@@ -218,8 +255,11 @@ export default function Results({ result, layer, onLayerChange }) {
           clouds, haze, or surfaces that are not turf. This is not the background photo.
         </p>
       )}
+      </section>
 
       {/* ---- The numbers ---- */}
+      <details className="card" open>
+      <summary className="card-title">Numbers</summary>
       {enoughData ? (
         <table className="stats">
           <thead>
@@ -260,9 +300,11 @@ export default function Results({ result, layer, onLayerChange }) {
           not be reliable.
         </p>
       )}
+      </details>
 
       {/* ---- What the numbers mean ---- */}
-      <h4>What these numbers mean</h4>
+      <details className="card">
+      <summary className="card-title">What these numbers mean</summary>
       <p>
         <strong>NDVI</strong> compares near-infrared and red light. Green, leafy grass reflects much
         more near-infrared than red, so it scores high. Approximate typical values: water below 0,
@@ -284,9 +326,11 @@ export default function Results({ result, layer, onLayerChange }) {
         A low value is a reason to look at the field in person. It does not say why: dormancy, recent
         mowing, wear, disease, or watering problems can all look similar from space.
       </p>
+      </details>
 
       {/* ---- Data quality ---- */}
-      <h4>Data quality</h4>
+      <details className="card" open>
+      <summary className="card-title">Data quality</summary>
       <ul className="facts">
         <li>
           Clear pixels: {pixels.valid_after_masking.toLocaleString()} of{' '}
@@ -319,9 +363,11 @@ export default function Results({ result, layer, onLayerChange }) {
         Cloud and shadow pixels are removed using Sentinel-2&apos;s own scene classification. Warning
         levels and the 20-pixel minimum are this project&apos;s choices, not official standards.
       </p>
+      </details>
 
       {/* ---- Limitations ---- */}
-      <h4>Limitations</h4>
+      <details className="card">
+      <summary className="card-title">Limitations</summary>
       <ul className="facts">
         <li>Each NDVI pixel is 10 m × 10 m and each NDMI pixel is 20 m × 20 m. Patches smaller than that can be missed.</li>
         <li>Pixels on the edge of your outline can mix turf with dirt, pavement, or trees, which pulls values toward those surfaces.</li>
@@ -330,9 +376,10 @@ export default function Results({ result, layer, onLayerChange }) {
         <li>The healthy-turf baseline was measured on watered Colorado sports turf in summer 2026. Other grass types, or grass that is dormant in spring or winter, can be naturally below it.</li>
         <li>It cannot diagnose disease, prove drought, or say how much to water.</li>
       </ul>
+      </details>
 
-      <details>
-        <summary>Full backend response (raw data)</summary>
+      <details className="card">
+        <summary className="card-title">Full backend response (raw data)</summary>
         <pre>{JSON.stringify(rawWithoutImages, null, 2)}</pre>
       </details>
       <p className="attribution">Data: {result.source}. Contains modified Copernicus Sentinel data {observation.date.slice(0, 4)}.</p>

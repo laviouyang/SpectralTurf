@@ -1,5 +1,8 @@
 /*
- * SearchBox.jsx - Find a place in Colorado using OpenStreetMap's Nominatim service.
+ * SearchBox.jsx - Find a place using OpenStreetMap's Nominatim service.
+ * Version 2 (2026-11-25): any address can be found (results inside Colorado are still
+ * preferred); a place outside Colorado is passed on with outsideColorado: true so the app
+ * can warn that the AI was trained on Colorado fields.
  *
  * Nominatim usage policy (https://operations.osmfoundation.org/policies/nominatim/):
  *   - At most 1 request per second   -> we only search when the user presses Search
@@ -8,9 +11,10 @@
  * It is a free, volunteer-run service meant for light use like this project.
  */
 import { useRef, useState } from 'react';
+import { isInColorado } from './region.js';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-// Colorado's borders as a box: west, north, east, south.
+// Colorado's borders as a box: west, north, east, south (results here are preferred, not required).
 const COLORADO_VIEWBOX = '-109.06,41.00,-102.04,36.99';
 
 export default function SearchBox({ onSelect }) {
@@ -40,16 +44,14 @@ export default function SearchBox({ onSelect }) {
         q: text,
         format: 'jsonv2',
         limit: '5',
-        countrycodes: 'us',
-        viewbox: COLORADO_VIEWBOX,
-        bounded: '1', // only return places inside the Colorado box
+        viewbox: COLORADO_VIEWBOX, // prefer places in Colorado, but allow any address
       });
       const response = await fetch(`${NOMINATIM_URL}?${params}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const places = await response.json();
 
       if (places.length === 0) {
-        setMessage(`No places found in Colorado for "${text}". Try adding the city name.`);
+        setMessage(`No places found for "${text}". Try adding the city and state.`);
       } else if (places.length === 1) {
         choose(places[0]);
       } else {
@@ -65,7 +67,8 @@ export default function SearchBox({ onSelect }) {
   function choose(place) {
     // Nominatim gives the place's box as [south, north, west, east] (as text).
     const [south, north, west, east] = place.boundingbox.map(Number);
-    onSelect({ south, north, west, east });
+    const outsideColorado = !isInColorado(Number(place.lat), Number(place.lon));
+    onSelect({ south, north, west, east, outsideColorado });
     setResults([]);
     setMessage(`Showing: ${place.display_name}`);
   }
@@ -77,8 +80,8 @@ export default function SearchBox({ onSelect }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Park, school, or address in Colorado"
-          aria-label="Search for a place in Colorado"
+          placeholder="Park, school, or address"
+          aria-label="Search for a place"
         />
         <button type="submit" disabled={loading}>
           {loading ? 'Searching…' : 'Search'}

@@ -16,7 +16,8 @@ const STATUS_TEXT = {
   insufficient_evidence: 'Insufficient evidence',
 };
 
-function LoginForm({ onUserChange }) {
+// Exported in Version 2 so the separate log-in page (LoginPage.jsx) can use the same form.
+export function LoginForm({ onUserChange }) {
   const [mode, setMode] = useState('login'); // 'login' or 'signup'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +42,8 @@ function LoginForm({ onUserChange }) {
   return (
     <form className="account-form" onSubmit={handleSubmit}>
       <p className="muted">
-        Optional. With an account, your analyses are saved so you can come back to a field later.
+        Optional. With an account you can save fields under a name and use My Fields, the AI
+        checks and Ask AI.
       </p>
       <label>
         Username
@@ -91,6 +93,23 @@ function LoginForm({ onUserChange }) {
 
 function HistoryItem({ item, onShow, onDelete }) {
   const s = item.summary;
+  // Version 2: a field saved with "Save to My Fields" has no analysis (and no numbers).
+  if (s.status === 'not_analyzed') {
+    return (
+      <li className="history-item">
+        <strong>{item.name}</strong>
+        <span className="muted">Saved field · not analyzed yet (press Show on map, then Analyze)</span>
+        <div className="button-row">
+          <button type="button" className="secondary" onClick={() => onShow(item)}>
+            Show on map
+          </button>
+          <button type="button" className="link-button" onClick={() => onDelete(item)}>
+            Delete
+          </button>
+        </div>
+      </li>
+    );
+  }
   const stats = s.status === 'ok'
     ? `NDVI ${s.ndvi_median ?? '–'} · NDMI ${s.ndmi_median ?? '–'}`
     : 'Not enough clear pixels';
@@ -124,7 +143,7 @@ export default function AccountPanel({ user, onUserChange, onLogOut, history, hi
           Log out
         </button>
       </p>
-      <p className="muted">Each analysis you run is saved here automatically.</p>
+      <p className="muted">Fields you save with “Save to My Fields” are listed here.</p>
       {historyError && <p className="problems-box">{historyError}</p>}
       {history.length === 0 ? (
         <p className="muted">No saved analyses yet.</p>
@@ -137,6 +156,25 @@ export default function AccountPanel({ user, onUserChange, onLogOut, history, hi
             ))}
           </ul>
         </details>
+      )}
+    </div>
+  );
+}
+
+// Added 2026-11-23 (UI redesign): just the saved-analyses list, for the app's "My Fields" tab.
+// Same items and buttons as above; the login form and "Log out" stay in the account menu.
+export function SavedAnalyses({ history, historyError, onShow, onDelete }) {
+  return (
+    <div>
+      {historyError && <p className="problems-box">{historyError}</p>}
+      {history.length === 0 ? (
+        <p className="muted">No saved fields yet. Draw a field, give it a name and click “Save to My Fields”.</p>
+      ) : (
+        <ul className="history-list">
+          {history.map((item) => (
+            <HistoryItem key={item.id} item={item} onShow={onShow} onDelete={onDelete} />
+          ))}
+        </ul>
       )}
     </div>
   );

@@ -127,6 +127,13 @@ python test_accounts.py
 Checks accounts with a throwaway database: passwords and tokens are never stored as plain text,
 wrong passwords are refused, and one user can't see or delete another user's saved analyses.
 
+```powershell
+python test_regions.py
+```
+Checks the grass regions: the two data copies match, only Region 3 is validated, 21 well-known
+places land in the expected region, and a Denver-area analysis has exactly the same numbers as
+before (only a region label is added).
+
 ### Opening it on your phone (same Wi-Fi)
 
 1. Windows must treat your home Wi-Fi as **Private** (Settings → Network & internet → Wi-Fi →
@@ -276,6 +283,39 @@ normal variation.
 | Warnings | <80% clear, tile >10% cloudy, <20 NDMI measurements, median NDVI <0.3 | `indices.py` `WARN_*` |
 | Map color scales | NDVI 0→0.8, NDMI −0.4→0.4 | `render.py` |
 
+### Grass regions (added 2026-11-25)
+
+The homepage has a map of **7 US grass regions**. When a field is drawn, the app detects its region
+from the middle of the field (and the user can change it). The region is only a **label** on the
+results and in Ask SpectralTurf: the satellite math is the same everywhere.
+
+| Region | Name | Common grasses (source) | Status |
+|---|---|---|---|
+| 1 | Pacific Northwest coast | perennial ryegrass, fine fescues, Kentucky bluegrass, bentgrass, tall fescue ([OSU Extension EC 1521](https://extension.oregonstate.edu/catalog/pub/ec-1521-practical-lawn-care-western-oregon)) | Coming soon |
+| 2 | Intermountain West | Kentucky bluegrass, tall fescue, fine fescues, perennial ryegrass, wheatgrass ([USU Extension](https://extension.usu.edu/yardandgarden/research/turfgrass-cultivars-for-utah.php)) | Coming soon |
+| 3 | Northern & Central Plains (Denver) | Kentucky bluegrass, tall fescue, buffalograss, blue grama, fine fescues, perennial ryegrass ([CSU Extension](https://extension.colostate.edu/resource/turfgrass-species-selection-guidelines)) | **Validated** (Denver-area fields) |
+| 4 | Upper Midwest & Northeast | Kentucky bluegrass, fine fescues, perennial ryegrass, tall fescue ([UMN Extension](https://extension.umn.edu/lawn-care/buying-turfgrass-seed-minnesota-lawns)) | Coming soon |
+| 5 | Southwest | bermudagrass, zoysiagrass, St. Augustinegrass, buffalograss in cooler, higher areas ([U of Arizona Extension](https://extension.arizona.edu/publication/turfgrass-maintenance-guide-residential-and-commercial-lawns-low-elevation-Arizona)) | Coming soon |
+| 6 | Transition zone | tall fescue, Kentucky bluegrass, perennial ryegrass, zoysiagrass, bermudagrass ([NC State TurfFiles](https://www.turffiles.ncsu.edu/grasses)) | Coming soon |
+| 7 | Southeast & Gulf Coast | St. Augustinegrass, bahiagrass, centipedegrass, zoysiagrass, bermudagrass ([UF/IFAS LH005](https://edis.ifas.ufl.edu/publication/LH005)) | Coming soon |
+
+* **Approximate boundaries, not an official map.** The region layout follows the "Grass Types USA"
+  map by Simple Lawn Solutions (a lawn-care company; used as a visual reference only, their image
+  is not used), redrawn by hand. State shapes: U.S. Census Bureau cartographic boundaries via
+  [us-atlas](https://github.com/topojson/us-atlas) (`frontend/scripts/make_us_map.mjs` ->
+  `frontend/src/usMap.json`). The split into cool-season, transition and warm-season areas matches
+  the zone maps of the
+  [University of Maryland Extension](https://extension.umd.edu/resource/lawn-grasses-grown-maryland)
+  and [Kansas State University](https://www.k-state.edu/news/turf/articles/2026/07/summer-turf-wars-battling-drought-heat-and-seasonal-pests-part-one-dought-and-heat-stress.html)
+  (its map shows "the approximate boundaries" of the transition zone). Region zones:
+  `scripts/make_turf_regions.py`.
+* **Only Region 3 is validated**, with Denver-area fields: the healthy-turf baseline, the color
+  cutoff and the AI model were made from them. Elsewhere the app shows "Not validated for this
+  region yet"; the within-field check still works anywhere.
+* Data: `frontend/src/turfRegions.json` (the website) and an identical copy
+  `backend/turf_regions.json` (the backend; `test_regions.py` checks they match). Both are written by
+  `python scripts/make_turf_regions.py .`
+
 ---
 
 ## Limitations
@@ -302,6 +342,8 @@ normal variation.
   - Sprinkler gaps smaller than a 10 m pixel blend with green turf around them.
 * **Not a diagnosis:** dormancy, mowing, wear, disease, and irrigation problems can look the same
   from space. The app shows where to look; a person decides what is wrong.
+* **Grass regions:** region boundaries are approximate, and only Region 3 (Denver-area fields) is
+  validated. Outside it, the baseline, color cutoff and AI results may not be accurate.
 * **Map alignment:** the analysis picture is placed using longitude/latitude. This is accurate for
   field-sized areas, but may stretch slightly near the 5 km maximum.
 
@@ -347,7 +389,8 @@ for the rectangle, so only pixels inside the drawn outline are analyzed.
 | `backend/indices.py` | The science: NDVI, NDMI, cloud mask, excluded areas, statistics, warnings, inspection rule (no internet) |
 | `backend/render.py` | Turns index values into the map pictures (display only) |
 | `backend/accounts.py` | Accounts (SQLite): password hashing, login tokens, saved analyses |
-| `backend/test_indices.py`, `backend/test_accounts.py` | Offline tests |
+| `backend/regions.py`, `backend/turf_regions.json` | Grass regions: detect a field's region, "validated or not" label |
+| `backend/test_indices.py`, `backend/test_accounts.py`, `backend/test_regions.py` | Offline tests |
 | `frontend/src/App.jsx` | Page layout, state, Analyze button |
 | `frontend/src/MapView.jsx` | Leaflet map, drawing tools, analysis picture overlay |
 | `frontend/src/SearchBox.jsx` | Place search (Nominatim) |
@@ -356,6 +399,9 @@ for the rectangle, so only pixels inside the drawn outline are analyzed.
 | `frontend/src/AccountPanel.jsx` | Log in / sign up form and the saved-analyses list |
 | `frontend/src/Results.jsx` | Inspection card, legends, numbers, data quality, limitations |
 | `frontend/src/leafletSetup.js` | Makes Leaflet available to the Leaflet.draw plugin |
+| `frontend/src/RegionMap.jsx`, `frontend/src/turfRegions.js(on)` | Homepage grass-region map; region detection for a drawn field |
+| `scripts/make_turf_regions.py` | Writes the region data (approximate region zones, grass lists, sources) |
+| `frontend/scripts/make_us_map.mjs` | Builds `src/usMap.json`: US Census state shapes + region zones on one Albers map projection |
 
 ---
 
@@ -371,3 +417,5 @@ for the rectangle, so only pixels inside the drawn outline are analyzed.
   Earthstar Geographics, and the GIS User Community) and OpenStreetMap tiles.
 * **Libraries:** FastAPI, NumPy, tifffile, Pillow, Requests, React, Vite, Leaflet, Leaflet.draw.
 * **Further turf advice:** [Colorado State University Extension](https://extension.colostate.edu/).
+* **Grass regions:** see "Grass regions" above for the university extension sources (UMD, K-State,
+  OSU, USU, CSU, UMN, University of Arizona, NC State, UF/IFAS).

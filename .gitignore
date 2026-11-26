@@ -18,3 +18,6 @@ ml/data/cache/
 
 # Stage 10: AI check downloads (re-creatable cache)
 backend/ai_cache/
+
+# Reference images from other websites (NOT ours to publish; never commit)
+References/

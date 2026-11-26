@@ -5,11 +5,15 @@ import ReactDOM from 'react-dom/client';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import './App.css';
+// UI redesign (2026-11-23): design system, site pages, and the app's new layout.
+import './theme.css';
+import './site.css';
+import './appshell.css';
 
-import App from './App.jsx';
+import Site from './Site.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <Site />
   </React.StrictMode>
 );

@@ -13,6 +13,12 @@ import { useState } from 'react';
 import { askSpectralTurf } from './api.js';
 import { MicButton, PhotoButton, ReadAloud } from './ChatExtras.jsx';
 
+// Version 2: questions are always about ONE picked field, so the presets are about that field.
+const FIELD_PRESETS = [
+  'Should I inspect this field?',
+  'Why was this field flagged?',
+  'How reliable is this result?',
+];
 const PRESETS = [
   'Which field should I inspect first?',
   'Why was this field flagged?',
@@ -54,7 +60,9 @@ function Answer({ text }) {
   return <div className="ask-answer">{blocks}</div>;
 }
 
-export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, user }) {
+// field (Version 2): 'screen' or a saved analysis id; questions are only about that field.
+// region (added 2026-11-25): the picked field's grass region 1-7, so answers can mention it.
+export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, user, field, fieldLabel, region = null }) {
   const [question, setQuestion] = useState('');
   const [chat, setChat] = useState([]); // newest last: {question, reply?, error?}
   const [busy, setBusy] = useState(false);
@@ -71,7 +79,7 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
     let entry;
     try {
       const reply = await askSpectralTurf({ question: q, geometry, exclude, start, end, as_of: asOf,
-                                            photo: sentPhoto?.base64 });
+                                            photo: sentPhoto?.base64, field, region });
       entry = { question: q, photo: sentPhoto?.preview, reply };
     } catch (e) {
       entry = { question: q, photo: sentPhoto?.preview, error: e.message };
@@ -84,8 +92,10 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
     <div className="ask-panel">
       <p className="next-step"><strong>{NOTE}</strong></p>
       <p className="muted">
-        Ask about {user ? 'your saved fields or ' : ''}the field on the map
-        {user ? '' : ' (log in to ask about your saved fields)'}, as of {asOf}. Answers use only
+        {field ? <>Every question is about <strong>{fieldLabel}</strong></> : (
+          <>Ask about {user ? 'your saved fields or ' : ''}the field on the map
+          {user ? '' : ' (log in to ask about your saved fields)'}</>
+        )}, as of {asOf}. Answers use only
         SpectralTurf data; the AI never gives watering amounts or names a cause. Your question,
         field data and any photo are sent to Google Gemini (no username, no field names, no map
         location; the photo&apos;s hidden GPS data is removed). Please don&apos;t type personal
@@ -93,7 +103,7 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
       </p>
 
       <div className="ask-presets">
-        {PRESETS.map((p) => (
+        {(field ? FIELD_PRESETS : PRESETS).map((p) => (
           <button key={p} type="button" onClick={() => send(p)} disabled={busy}>{p}</button>
         ))}
       </div>
@@ -103,7 +113,7 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
           value={question}
           maxLength={MAX_CHARS}
           rows={2}
-          placeholder="Or type your own question about your fields…"
+          placeholder={field ? 'Or type your own question about this field…' : 'Or type your own question about your fields…'}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(question); }

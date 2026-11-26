@@ -9,9 +9,10 @@ Endpoints:
   POST /api/auth/signup, /api/auth/login, /api/auth/logout, GET /api/auth/me -> accounts
   GET  /api/history, DELETE /api/history/{id} -> a logged-in user's saved analyses
   POST /api/ai/my-fields      -> Stage 10 Step 8: the user's saved fields ranked by the AI check
-  GET  /api/ai/what-if/limits, POST /api/ai/what-if -> Step 9: "What if?" weather scenarios
-  POST /api/ai/weather-check  -> Steps 6-7: AI Weather Check for the field on the map
-  POST /api/ai/ask            -> Step 10: "Ask SpectralTurf" AI assistant (Gemini + read-only tools)
+  GET  /api/ai/what-if/limits, POST /api/ai/what-if -> Step 9: "What if?" weather scenarios (POST: login)
+  POST /api/ai/weather-check  -> Steps 6-7: AI Weather Check for the field on the map (login)
+  POST /api/ai/ask            -> Step 10: "Ask SpectralTurf" AI assistant (Gemini + read-only tools) (login)
+  POST /api/fields            -> Version 2: save a field to My Fields WITHOUT analyzing it (login)
 
 Public-website safety limits (login lockout, daily caps) are at the end of this file
 (backend/limits.py); they are only on when deployed (Render) or with USAGE_LIMITS=on.
@@ -35,7 +36,9 @@ import accounts
 import assistant
 import indices
 import predict
+import regions
 import render
+import saved_fields
 import sentinel
 
 # Load CDSE_CLIENT_ID and CDSE_CLIENT_SECRET from the .env file.
@@ -195,6 +198,12 @@ class AnalyzeRequest(BaseModel):
         description="GeoJSON Polygons inside the outline that are not turf (e.g. dirt infields)",
     )
     name: str = Field("", max_length=200, description="Field name for the history (logged-in users)")
+    # Added 2026-11-25 (Version 2): saving is now a separate choice ("Save & analyze" vs
+    # "Analyze"). The website always sends it; leaving it out keeps the old behavior (save).
+    save: bool = Field(True, description="Logged in: save a summary of this result to your history")
+    # Added 2026-11-25: the field's grass region (1-7, detected on the map or changed by the user).
+    # Only a LABEL on the result: the analysis math is exactly the same in every region.
+    region: int | None = Field(None, ge=1, le=7, description="Grass region 1-7 (optional; detected if left out)")
 
 
 @app.post("/api/analyze")
@@ -204,10 +213,12 @@ def analyze(request: AnalyzeRequest, user=Depends(current_user), db=Depends(get_
         raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
     exclusions = [clean_polygon(shape) for shape in request.exclude]
     result = run_analysis(geometry, request.start, request.end, request.max_cloud, exclusions)
+    # Grass region label + "validated or not" (regions.py). Numbers above are unchanged.
+    result["grass_region"] = regions.resolve(request.region, geometry)
 
-    # Logged in? Save a summary of this real result to the user's history.
+    # Logged in and asked to save ("Save & analyze")? Save a summary of this real result.
     # Saving problems never hide the analysis itself.
-    if user:
+    if user and request.save:
         try:
             result["saved_id"] = accounts.save_analysis(
                 db, user["id"], request.name, geometry, exclusions, request.start, request.end, result
@@ -263,6 +274,27 @@ def delete_history_item(analysis_id: int, user=Depends(required_user), db=Depend
     if not accounts.delete_analysis(db, user["id"], analysis_id):
         raise HTTPException(status_code=404, detail="That saved analysis was not found.")
     return {"status": "deleted"}
+
+
+# Version 2 (2026-11-25): "Save" and "Analyze" are separate buttons. Saving keeps only the
+# outline, excluded areas and name (no satellite numbers - nothing was measured).
+class SaveFieldRequest(BaseModel):
+    name: str = Field(..., max_length=200, description="The field's name in My Fields")
+    geometry: dict = Field(..., description="GeoJSON Polygon, same rules as /api/analyze")
+    exclude: list[dict] = Field(default_factory=list, description="Excluded areas inside the outline")
+
+
+@app.post("/api/fields")
+def save_field(body: SaveFieldRequest, user=Depends(required_user), db=Depends(get_db)):
+    geometry = clean_polygon(body.geometry)
+    if len(body.exclude) > MAX_EXCLUDED_AREAS:
+        raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
+    exclusions = [clean_polygon(shape) for shape in body.exclude]
+    try:
+        saved_id = saved_fields.save_field(db, user["id"], body.name, geometry, exclusions)
+    except accounts.AccountError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "saved", "saved_id": saved_id}
 
 
 @app.get("/api/test/truecolor")
@@ -353,8 +385,9 @@ class WhatIfRequest(BaseModel):
 
 
 @app.post("/api/ai/what-if")
-def what_if(body: WhatIfRequest, user=Depends(current_user), db=Depends(get_db)):
-    """Step 9: run the trained model with the user's made-up weather. Only READS saved fields."""
+def what_if(body: WhatIfRequest, user=Depends(required_user), db=Depends(get_db)):
+    """Step 9: run the trained model with the user's made-up weather. Only READS saved fields.
+    Login required since 2026-11-25 (Version 2), like the website's AI Check tab."""
     check_as_of(body.as_of)
     if body.dry_days >= predict.WHAT_IF_DAYS and body.rain_mm > 0:
         raise HTTPException(status_code=400, detail=f"With {predict.WHAT_IF_DAYS} days without rain, "
@@ -392,9 +425,10 @@ class WeatherCheckRequest(BaseModel):
 
 
 @app.post("/api/ai/weather-check")
-def weather_check(body: WeatherCheckRequest):
+def weather_check(body: WeatherCheckRequest, user=Depends(required_user)):
     """Expected vs actual NDVI for the latest clear image, next-week risk, and (when there has
-    been no clear image for 7+ days) the AI's cloudy-day estimate. Uses no account data."""
+    been no clear image for 7+ days) the AI's cloudy-day estimate. Uses no account data.
+    Login required since 2026-11-25 (Version 2), like the website's AI Check tab."""
     check_as_of(body.as_of)
     geometry = clean_polygon(body.geometry)
     if len(body.exclude) > MAX_EXCLUDED_AREAS:
@@ -421,13 +455,19 @@ class AskRequest(BaseModel):
     as_of: date = Field(default_factory=date.today)
     # Added 2026-11-22: one optional photo (base64 JPEG/PNG/WebP). Re-saved without metadata, never stored.
     photo: str | None = Field(None, max_length=12_000_000, description="Optional photo, base64")
+    # Added 2026-11-25 (Version 2): the ONE field the questions are about: "screen" (the field
+    # on the map) or the id of one of your saved analyses. Optional, so old requests still work.
+    field: str | None = Field(None, max_length=40, description="'screen' or a saved analysis id")
+    # Added 2026-11-25: the picked field's grass region (1-7); detected from its outline if left out.
+    region: int | None = Field(None, ge=1, le=7, description="Grass region 1-7 of the picked field")
 
 
 @app.post("/api/ai/ask")
-def ask(body: AskRequest, request: Request, user=Depends(current_user), db=Depends(get_db)):
-    """Answer a question with Gemini + read-only tools. Logged in: the user's OWN saved fields
-    (read only) + the field on screen. Visitor: only the field on screen. Gemini never gets the
-    username or the field names. Problems give a friendly 503; the rest of the app is unaffected."""
+def ask(body: AskRequest, request: Request, user=Depends(required_user), db=Depends(get_db)):
+    """Answer a question with Gemini + read-only tools: the user's OWN saved fields (read only)
+    + the field on screen. Login required since 2026-11-25 (Version 2), like the website's Ask AI
+    tab (visitors get 401). Gemini never gets the username or the field names. Problems give a
+    friendly 503; the rest of the app is unaffected."""
     question = body.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Please type a question.")
@@ -467,6 +507,24 @@ def ask(body: AskRequest, request: Request, user=Depends(current_user), db=Depen
         raise HTTPException(status_code=429, detail=str(e))
     saved = accounts.list_analyses(db, user["id"]) if user else []  # only this user's rows (read only)
     ctx = assistant.Context(user is not None, saved, screen, analyze_screen, body.as_of)
+    if body.field is not None:  # Version 2: answer only about the field the user picked
+        picked = body.field.strip().lower()
+        if picked == "screen":
+            if screen is None:
+                raise HTTPException(status_code=400, detail="Draw a field on the map first.")
+        else:
+            if user is None:
+                raise HTTPException(status_code=401, detail="Log in to ask about your saved fields.")
+            label = ctx.label_for_saved_id(int(picked)) if picked.isdigit() else None
+            if label is None:
+                raise HTTPException(status_code=404, detail="That field is not in your saved fields.")
+            picked = label
+        ctx.focus = picked
+    # The grass region of the field the questions are about (tools then include it).
+    if ctx.focus == "screen" or (ctx.focus is None and screen is not None):
+        ctx.grass_region = regions.resolve(body.region, screen["geometry"])
+    elif ctx.focus:
+        ctx.grass_region = regions.resolve(body.region, ctx.fields[ctx.focus]["geometry"])
     try:
         return assistant.ask(question, ctx, photo=photo)
     except assistant.AssistantError as e:

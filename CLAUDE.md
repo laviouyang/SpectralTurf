@@ -5,24 +5,112 @@ passed), now extended for **WAICY** (due **November 29, 2026**). Author: Yuanzhi
 The student must be able to explain every major part to judges, so keep code simple,
 beginner-readable, and scientifically honest. Do not overengineer. Explain things simply.
 
-## Current status (updated 2026-11-25) — read this first in a new conversation
+## Current status (updated 2026-11-25, later) — read this first in a new conversation
 - Branch `main` (GitHub, pushed 2026-11-22, commit 71840e5): everything up to Render deploy prep.
-- Branch `ui-redesign` (on GitHub; redesign commit 37b050d + notes updates): new homepage,
-  /about page and redesigned map app. **NOT merged — the student must approve before merging into
-  main.** Never merge it without being asked.
-- Render: prepared (render.yaml, docs/DEPLOY_RENDER.md) but **NOT deployed**. The student deploys
-  it themselves; Claude must not deploy.
-- Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of the
-  redesign; real-phone test; Render deploy by the student.
-- All tests passed on 2026-11-23 (both branches): test_indices, test_accounts 16, test_predict 58,
-  test_assistant 48, test_limits 23, ml get_fields 20, ndvi_history 11, weather 6,
-  dataset_and_model 15, dataset_v3 13; frontend builds.
+- Branch `version-2` (= the old `ui-redesign`, renamed LOCALLY 2026-11-25 at the student's
+  request; it tracks GitHub's `ui-redesign`, which the STUDENT pushed on 2026-11-25 up to a15cc79;
+  the GitHub name was not changed): new homepage,
+  /about page, redesigned map app + the Version 2 changes below. **NOT merged — the student must
+  approve before merging into main.** Never merge it without being asked.
+- Render: the student DEPLOYED it themselves (told Claude 2026-11-25). Claude must not deploy.
+- VERSION 2 CHANGES (2026-11-25, student requests, on `version-2`): homepage nav shows
+  "Logged in as <name>" (SiteChrome.jsx calls currentUser); map starts on the OSM street map;
+  My Fields / AI Check / Ask AI need an account (frontend lock + 🔒 on tabs; since 2026-11-25
+  the backend ALSO requires login: POST /api/ai/weather-check, /api/ai/what-if, /api/ai/ask use
+  required_user -> 401 "Please log in first." for visitors; GET /api/ai/what-if/limits stays public;
+  tests backend/test_ai_login.py 12/12; existing tests given a login where they tested other
+  things, test_predict 56 renamed "works when logged in", test_limits 17 now expects visitor 401); dates default To = yesterday, From = To − 14 days; moving
+  From past To moves To to the same day, moving To before From moves From to 14 days before;
+  FieldPicker.jsx (new) = drop-down of "Field on the map" + distinct saved fields for AI Weather
+  Check, What if? and Ask AI; Ask AI requires picking ONE field first -> POST /api/ai/ask
+  optional `field` ("screen" or a saved analysis id) -> assistant.Context(focus=...) refuses
+  every other field and the ranking. Tests backend/test_ask_focus.py 15/15. Checked in Chrome
+  with a THROWAWAY database (DATABASE_PATH in the scratchpad, deleted after): street map, dates,
+  locks, homepage login, AI Weather Check on a saved field (real data), Ask AI on a saved field
+  (real Gemini). What-if drop-down not clicked in a browser; no real phone test.
+- VERSION 2, ROUND 2 (2026-11-25, student requests, on `version-2`): place search moved from the
+  top bar to the TOP OF THE ANALYZE TAB (.panel-search; student clarified "under the Analyze tab";
+  top bar = logo + account only; checked in Chrome: search, results list, zoom); separate /login page (LoginPage.jsx, uses the exported LoginForm) between home
+  and app - homepage "Try it" / "Open the app" (logged out) and the app's "Log in" go there, with
+  "Continue without an account"; SAVING IS SEPARATE: logged-in users get "Save & analyze" (needs
+  a name) and "Analyze only (don't save)"; POST /api/analyze new optional `save` (default true =
+  old behavior; website always sends it); a name can be used once - Modal.jsx pop-up "Replace
+  it / Don't replace"; replace deletes the old same-name saves only AFTER the new one is saved
+  (frontend check, not enforced in the backend); map note bottom right: background map for
+  drawing only, Esri photo ~June 1, 2025 (date checked at ONE field, Gates North - worded so,
+  can differ by place); AI Check panels titled "1. AI Weather Check" / "2. What if?"; footer
+  credits linked (Copernicus, Open-Meteo, OSM copyright, Nominatim, Esri); search works for ANY
+  address (Colorado still preferred via viewbox) and region.js pops up an outside-Colorado
+  warning (+ a notice on fields outside CO); homepage StatePicker: all 50 states, only Colorado
+  selectable, others "coming soon", with a disclaimer why. Tests backend/test_analyze_save.py 4/4.
+  Checked in Chrome with a throwaway DB (deleted): homepage, login page sign-up -> app, search
+  left, outside-CO pop-up (Central Park NY), Analyze only saves nothing, Save & analyze ->
+  replace pop-up -> old entry deleted, new real result saved (Grass B box NDVI median 0.777,
+  image 2026-08-05), AI Check numbering, logged-out "Log in" -> /login.
+- VERSION 2, ROUND 3 (2026-11-25, student request) - REPLACES round 2's "Save & analyze":
+  two separate buttons. "Save to My Fields" (in the Your field card; needs a name; no dates, no
+  analysis) -> NEW POST /api/fields {name, geometry, exclude} (login) -> NEW backend/saved_fields.py
+  inserts into saved_analyses with start/end/observation_date "" and summary
+  {"status": "not_analyzed"} (NO numbers; accounts.py unchanged). Same-name -> replace pop-up
+  (deletes old after the new save). "Analyze" (Satellite analysis card) NEVER saves (sends
+  save:false). "Show on map" no longer changes the dates and switches to the Analyze tab, so
+  Analyze works right after it. assistant.saved_facts returns "saved outline only / not_analyzed"
+  (no numbers) for such rows; HistoryItem shows "Saved field · not analyzed yet"; "Saved
+  analyses" panel renamed "Saved fields". Tests backend/test_save_field.py 8/8. Checked in Chrome
+  on SEPARATE ports (backend 8001 with a throwaway DB + VITE_API_URL vite on 5175, because the
+  student's own servers were running on 8000/5173): draw -> Save (no numbers stored) -> Clear ->
+  My Fields -> Show on map -> Analyze (real image 2026-11-20, Insufficient evidence; nothing
+  saved) -> Save same name -> replace pop-up -> old row deleted.
+  ROUND 3b (student): saving must feel OPTIONAL -> the name box + "Save to My Fields" moved
+  out of the Your field card to just UNDER the Analyze button ("Save this field (optional)",
+  secondary button, "You don't have to save to analyze"). Analyze never needs a name. Checked
+  in Chrome (ports 8001/5175, throwaway DB): Analyze enabled with an empty name, Save disabled
+  until a name is typed.
+- GRASS REGIONS (2026-11-25, student request; replaces the homepage state picker). 7 US
+  turfgrass regions; ONLY Region 3 (Northern & Central Plains, Denver-area fields) validated.
+  Data: scripts/make_turf_regions.py writes frontend/src/turfRegions.json + identical
+  backend/turf_regions.json (simplified hand-drawn 48-state outline; region ZONES tile the box
+  126-66 W / 24-50 N; approximate). SOURCES: no single public source draws these 7 regions ->
+  framework = UMD Extension zone map + K-State "approximate boundaries" transition-zone map; the
+  7-way split and lines are OUR approximation (said on the page). Grass lists checked per region:
+  OSU EC1521, USU, CSU, UMN, U of Arizona, NC State TurfFiles, UF/IFAS LH005. Dropped from the
+  student's lists as NOT confirmed by those sources: bentgrass (2, 4), zoysia (3), blue grama (5);
+  added blue grama + fine fescues (3, CSU), tall fescue (1, 4). References/Grasstypes.jpg = a
+  company image, used only as a loose reference, git-ignored, never on the site.
+  RegionMap.jsx (homepage section #regions): original SVG (zones clipped to the outline),
+  clickable/keyboard regions, info panel, legend, text list, "Validated"/"Coming soon" (striped).
+  App: region detected from the field center (turfRegions.js) + "Wrong region? Change it";
+  non-3 -> "Not validated for this region yet" notice (Your field card, Results, AI Check).
+  Backend regions.py: POST /api/analyze optional `region` -> result.grass_region (label only;
+  numbers unchanged, tested); POST /api/ai/ask optional `region` -> Context.grass_region, added
+  to every tool result + intro; prompt rule 12. About page + README updated.
+  Tests backend/test_regions.py 16/16 (21 cities). Checked in Chrome: map, click/keyboard, 390 px
+  (no sideways scroll), app detect Village Greens -> Region 3, change -> Region 7 warning.
+  NOT live-tested: a real analysis/Ask with a region (backend tested with fakes).
+  MAP REDO (2026-11-25, student: "the map isn't that accurate... copy the picture"): Claude did
+  NOT copy the company image; instead (a) real state shapes: U.S. Census via us-atlas 3.0.1
+  (devDependencies us-atlas, topojson-client, topojson-simplify, d3-geo; only used by
+  frontend/scripts/make_us_map.mjs -> src/usMap.json, Albers projection, AK/HI dropped, state
+  lines drawn); (b) region zones REDRAWN to follow the picture's layout (2 wraps west CO/WY;
+  6 = band NE NM/S KS/OK/MO/KY/VA/MD/NJ; 7 includes NC; 1 = WA/OR west of Cascades only; CA
+  coast = 5); (c) credit right under the map: "Region layout adapted from the 'Grass Types USA'
+  map by Simple Lawn Solutions (visual reference only)" + Census/us-atlas + extensions.
+  The old hand-drawn outline (us_outline) was removed. Re-run BOTH scripts after changing zones:
+  python scripts/make_turf_regions.py .  then  cd frontend; node scripts/make_us_map.mjs
+- Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
+  `version-2`; push of the renamed branch (ask first); real-phone test.
+- All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
+  test_assistant 48, test_limits 23, test_ask_focus 15 + test_analyze_save 4 + test_save_field 8 (version-2 only),
+  ml get_fields 20,
+  ndvi_history 11, weather 6, dataset_and_model 15, dataset_v3 13; frontend builds.
 
 ## How to run all tests
 ```
 cd backend
 python test_indices.py; python test_accounts.py; python test_predict.py
 python test_assistant.py; python test_limits.py
+python test_ask_focus.py; python test_analyze_save.py; python test_save_field.py   # version-2 only
+python test_ai_login.py; python test_regions.py   # version-2 only
 cd ..
 python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
 python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py
@@ -65,6 +153,9 @@ It must NOT claim to diagnose disease, prove drought, prescribe watering, or con
 - `backend/.env` holds CDSE_CLIENT_ID, CDSE_CLIENT_SECRET, GEMINI_API_KEY (optional GEMINI_MODEL).
   `python check_keys.py` (in backend) checks them without printing them.
 - If the backend isn't running, the Vite proxy makes every request show "HTTP 500".
+- If the student's own servers are running (8000/5173), test on other ports: backend
+  `--port 8001` with FRONTEND_ORIGINS + DATABASE_PATH (throwaway), and
+  `VITE_API_URL=http://localhost:8001 npx.cmd vite --port 5175` -> http://[::1]:5175.
 - Browser testing (Claude in Chrome): the student's Chrome is logged in to a local account at
   localhost:5173. To test as a visitor without touching their account/history, use
   http://[::1]:5173 (separate browser storage; 127.0.0.1 does not reach the Vite dev server).
@@ -472,9 +563,8 @@ Progress:
 - GitHub: https://github.com/laviouyang/SpectralTurf. `main` pushed 2026-11-22; `ui-redesign`
   is on GitHub too (see "Current status"). Older handoff summary: `docs/HANDOFF.md` (may be out of
   date; CLAUDE.md is the up-to-date record).
-- Render deploy not yet done; unverified there: staticPublishPath relative to rootDir, rewrite of
-  POST/large photo bodies, Python 3.13.14 availability. Esri basemap terms for a public site
-  unverified.
+- Render: deployed by the student (2026-11-25). Not checked by Claude there: rewrite of POST /
+  large photo bodies. Esri basemap terms for a public site unverified.
 - Gemini free tier: Google may use what is sent to improve its products (the chat panel warns).
 - Redesign: when searching a place, the map centers on the full screen, so part of the field can
   sit under the floating panel. Polygon drawing, exclusions and logged-in flows were not clicked
