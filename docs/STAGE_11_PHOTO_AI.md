@@ -6,7 +6,7 @@ Written 2026-11-25. Status: **plan + empty folders only**. No model, no code, no
 
 - **ADD-ON ONLY.** Everything SpectralTurf already does (analysis, inspection rule, AI Weather
   Check, What if?, Ask SpectralTurf, accounts, regions) must keep working exactly the same, and all
-  existing tests must still pass. New code goes in new files (`photo_ai/` folder). Existing files
+  existing tests must still pass. New code goes in new files (`ml_photo/` folder). Existing files
   may only get small additions (e.g. registering a new endpoint) — and only in a later step,
   after the student says so.
 - **Honest numbers only.** Every accuracy number comes from the evaluation script run on test
@@ -88,13 +88,13 @@ confirmation (e.g. the caption is from an extension specialist).
 
 ## 2. Step 1 — Baseline: CLIP embeddings + logistic regression (on this PC, CPU)
 
-New files (when we build it): `photo_ai/check_data.py`, `photo_ai/embed_clip.py`,
-`photo_ai/train_baseline.py`, `photo_ai/evaluate.py`, `photo_ai/test_photo_ai.py`.
+New files (when we build it): `ml_photo/check_data.py`, `ml_photo/embed_clip.py`,
+`ml_photo/train_baseline.py`, `ml_photo/evaluate.py`, `ml_photo/test_photo_ai.py`.
 
 1. **Check** `metadata.csv` and the folders (rules above). Print photos per class and per site.
 2. **Embed** every photo once with a pretrained CLIP image encoder (e.g. `openai/clip-vit-base-patch32`
    via Hugging Face `transformers`; CPU is fine for a few thousand photos, roughly a few photos per
-   second). Save embeddings to `photo_ai/cache/` (git-ignored) so they are never recomputed.
+   second). Save embeddings to `ml_photo/cache/` (git-ignored) so they are never recomputed.
    CLIP is used frozen — we don't change it, we only use the 512 numbers it gives for each photo.
 3. **Split by site:** about 20% of sites → **test** (kept locked until the end). The rest →
    training, with **GroupKFold by site** (5 folds) to choose settings. Fixed random seed (2026).
@@ -110,13 +110,13 @@ New files (when we build it): `photo_ai/check_data.py`, `photo_ai/embed_clip.py`
 
 ## 3. Step 2 — Fine-tune a small pretrained model (Google Colab notebook)
 
-New file: `photo_ai/finetune_colab.ipynb` (runs on Colab's free GPU; photos uploaded to the
+New file: `ml_photo/finetune_colab.ipynb` (runs on Colab's free GPU; photos uploaded to the
 student's own Google Drive, not to a public place).
 
 - Model: a small pretrained image model from Hugging Face, e.g. **EfficientNet-B0**
   (`google/efficientnet-b0`) or a small **ViT** (`google/vit-base-patch16-224`). Start from the
   pretrained weights, replace the last layer with 6 outputs.
-- **Exactly the same site split** as Step 1 (the split is saved to `photo_ai/split.json` and loaded
+- **Exactly the same site split** as Step 1 (the split is saved to `ml_photo/split.json` and loaded
   by the notebook), so the two results can be compared fairly.
 - Simple training: resize to 224 px, light augmentation (flip, small crop/rotation, small
   brightness change — no color changes that could turn green into brown), a few epochs, early
@@ -126,14 +126,14 @@ student's own Google Drive, not to a public place).
   (bootstrap over test sites, like Stage 10). With small data, CLIP + logistic regression often
   does as well or better — that is a valid result.
 
-## 4. What the evaluation reports (both steps) → `photo_ai/results.md`
+## 4. What the evaluation reports (both steps) → `ml_photo/results.md`
 
 - **Accuracy** on the test sites (all photos, Unsure counted as wrong) and **accuracy on answered
   photos** (Unsure left out).
 - **Unsure rate**: % of test photos below the confidence cutoff, and the cutoff value.
 - **Per-class results**: precision, recall, F1 and number of test photos for each class (scikit-learn
   `classification_report`). Balanced accuracy too, since classes may be uneven.
-- **Confusion matrix** (`photo_ai/confusion_step1.png`, `confusion_step2.png`) — shows which
+- **Confusion matrix** (`ml_photo/confusion_step1.png`, `confusion_step2.png`) — shows which
   problems get mixed up (expected: drought ↔ dormant ↔ disease).
 - **95% ranges** by bootstrapping over test sites (not photos), as in Stage 10.
 - Baselines: most-common-class, CLIP zero-shot.

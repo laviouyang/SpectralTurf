@@ -27,3 +27,6 @@ References/
 photo_data/*
 !photo_data/README.md
 !photo_data/metadata.csv
+
+# Reference PDFs (other people's copyrighted articles; never commit)
+reference_articles/

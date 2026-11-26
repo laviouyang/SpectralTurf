@@ -101,6 +101,11 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   (CLIP + logistic regression baseline on CPU, then Colab fine-tune; split BY SITE; Unsure cutoff
   chosen on CV, never on test). photo_data/<6 label folders> local only; git tracks only
   photo_data/README.md + metadata.csv header (.gitignore photo_data/* with ! exceptions).
+  REFERENCE PDFs (2026-11-25): reference_articles/ (48 PDFs from the student's dad; git-ignored,
+  copyrighted) read with PyMuPDF (installed in backend venv only; NOT in requirements.txt) ->
+  docs/disease_references.csv (57 rows, own-words symptoms, permission "not asked") +
+  ml_photo/class_descriptions.md (CLIP prompts). Plan folder renamed photo_ai/ -> ml_photo/.
+  No images extracted.
   OPEN DECISION: disease/insect labels conflict with the "no diagnosis" rule -> research-only or
   "looks most similar to... not a diagnosis" wording; ask the student before any app step.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
