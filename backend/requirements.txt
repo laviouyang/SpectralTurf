@@ -9,3 +9,6 @@ pillow>=11.0
 # the version the model was saved with, so a fresh install (e.g. on Render) can load it.
 joblib>=1.4
 scikit-learn==1.9.1
+# Added 2026-11-26: "Check a photo" runs the shrunken CLIP model (photo_model/*.onnx) with
+# onnxruntime only - no PyTorch on the server. Pinned to the version it was tested with.
+onnxruntime==1.32.0

@@ -15,6 +15,7 @@ environment variables named in brackets):
       new satellite analyses ("analysis")         30 / 10 / 300
       AI checks: weather check, What if?, My Fields ("ai_check")   200 / 100 / 2000
       chat messages to Ask SpectralTurf ("chat")   40 / 15 / 300
+      photo checks, "Check a photo" ("photo"; login only)   50 / - / 1000   (added 2026-11-26)
     The AI checks also keep their own Copernicus budget (predict.DAILY_PU_BUDGET).
   - "Per day" means per calendar day on the server's clock (UTC on Render).
 
@@ -58,6 +59,9 @@ DAILY_LIMITS = {
     "chat": (number("LIMIT_CHAT_PER_USER", 40), number("LIMIT_CHAT_PER_VISITOR", 15),
              number("LIMIT_CHAT_TOTAL", 300)),
     "signup": (None, number("LIMIT_SIGNUPS_PER_ADDRESS", 5), number("LIMIT_SIGNUPS_TOTAL", 100)),
+    # Added 2026-11-26: "Check a photo" (login only; the visitor number never applies -> 401 first).
+    "photo": (number("LIMIT_PHOTOS_PER_USER", 50), number("LIMIT_PHOTOS_PER_VISITOR", 10),
+              number("LIMIT_PHOTOS_TOTAL", 1000)),
 }
 
 # Which website requests count as which kind.
@@ -70,10 +74,11 @@ KIND_OF_PATH = {
     "/api/ai/my-fields": "ai_check",
     "/api/ai/ask": "chat",
     "/api/auth/signup": "signup",
+    "/api/photo/classify": "photo",  # added 2026-11-26
 }
 
 WHAT = {"analysis": "new satellite analyses", "ai_check": "AI checks (weather check, What if?, My Fields)",
-        "chat": "Ask SpectralTurf questions", "signup": "new accounts"}
+        "chat": "Ask SpectralTurf questions", "signup": "new accounts", "photo": "photo checks"}
 
 LOGIN_WINDOW_S = 15 * 60
 MAX_FAILS_PER_USERNAME = 5

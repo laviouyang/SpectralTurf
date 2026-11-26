@@ -96,10 +96,11 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
           <>Ask about {user ? 'your saved fields or ' : ''}the field on the map
           {user ? '' : ' (log in to ask about your saved fields)'}</>
         )}, as of {asOf}. Answers use only
-        SpectralTurf data; the AI never gives watering amounts or names a cause. Your question,
-        field data and any photo are sent to Google Gemini (no username, no field names, no map
-        location; the photo&apos;s hidden GPS data is removed). Please don&apos;t type personal
-        information or send photos of people.
+        SpectralTurf data; the AI never gives watering amounts or names a cause. Your question and
+        field data are sent to Google Gemini (no username, no field names, no map location).
+        A photo is NOT sent to Gemini: SpectralTurf&apos;s own photo AI checks it on our server
+        (hidden GPS data removed, never stored) and Gemini only gets that result. Please don&apos;t
+        type personal information or send photos of people.
       </p>
 
       <div className="ask-presets">
@@ -141,7 +142,8 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
                 <ReadAloud text={m.reply.answer} />
                 {m.reply.photo_used && (
                   <p className="muted">
-                    The photo is not a measurement: the AI only describes what it can see. Numbers
+                    The photo was checked by SpectralTurf&apos;s photo AI (&ldquo;looks most like&rdquo;):
+                    not a diagnosis — confirm with an expert. The photo is not a measurement; numbers
                     come from satellite data.
                   </p>
                 )}

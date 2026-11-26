@@ -148,3 +148,23 @@ export function weatherCheck(geometry, exclude, asOf) {
 export function askSpectralTurf(body) {
   return request('/api/ai/ask', { method: 'POST', body });
 }
+
+// Stage 11 (2026-11-26): "Check a photo". The photo file itself is the request body (no JSON),
+// so it is sent unchanged. The backend removes hidden GPS/EXIF data and never stores the photo.
+export async function classifyPhoto(blob) {
+  const headers = { 'Content-Type': blob.type || 'image/jpeg' };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let response;
+  try {
+    response = await fetch(`${API_URL}/api/photo/classify`, { method: 'POST', headers, body: blob });
+  } catch {
+    throw new Error('Could not reach the SpectralTurf backend. Make sure it is running.');
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = typeof data?.detail === 'string' ? data.detail : null;
+    throw new Error(detail || `The photo could not be checked (HTTP ${response.status}).`);
+  }
+  return data;
+}

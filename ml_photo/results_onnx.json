@@ -1,0 +1,71 @@
+{
+ "date": "2026-11-26",
+ "test_photos": 379,
+ "uncertain_cutoff": 0.75,
+ "agreement_top_class": 0.9973614775725593,
+ "agreement_final_answer_incl_uncertain": 0.9894459102902374,
+ "disagreements": [
+  {
+   "photo": "drought/grassland_dry_center_recording_2022_10_18_14_08_38_0_zed2i_0_rgb_raw_image_raw_color00038.png",
+   "true": "drought",
+   "original": "drought",
+   "int8": "Uncertain"
+  },
+  {
+   "photo": "drought/ref_drought-stressed-lawn_061.jpg",
+   "true": "drought",
+   "original": "Uncertain",
+   "int8": "wear"
+  },
+  {
+   "photo": "fungal_disease/ref_powdery-mildew_029.jpg",
+   "true": "fungal_disease",
+   "original": "Uncertain",
+   "int8": "fungal_disease"
+  },
+  {
+   "photo": "healthy/grassland_grass_center_recording_2022_10_18_12_14_41_0_zed2i_0_rgb_raw_image_raw_color00000.png",
+   "true": "healthy",
+   "original": "healthy",
+   "int8": "Uncertain"
+  }
+ ],
+ "max_probability_change": 0.17293346042326235,
+ "embedding_cosine_fp32_min": 0.9893103837966919,
+ "embedding_cosine_int8_min": 0.9902299642562866,
+ "embedding_cosine_int8_mean": 0.9997034956723215,
+ "original": {
+  "accuracy": 0.899736147757256,
+  "balanced_accuracy": 0.6933591427784304,
+  "uncertain_rate": 0.27440633245382584,
+  "uncertain_count": 104,
+  "answered_accuracy": 0.9709090909090909
+ },
+ "int8": {
+  "accuracy": 0.899736147757256,
+  "balanced_accuracy": 0.6933591427784304,
+  "uncertain_rate": 0.27440633245382584,
+  "uncertain_count": 104,
+  "answered_accuracy": 0.9672727272727273
+ },
+ "per_class_test_photos": {
+  "healthy": 158,
+  "drought": 194,
+  "fungal_disease": 8,
+  "insect_damage": 15,
+  "wear": 2,
+  "dormant": 2
+ },
+ "per_class_recall_int8": {
+  "healthy": 0.8037974683544303,
+  "drought": 0.9896907216494846,
+  "fungal_disease": 1.0,
+  "insect_damage": 0.8666666666666667,
+  "wear": 0.0,
+  "dormant": 0.5
+ },
+ "file_size_mb": {
+  "fp32": 351.6,
+  "int8": 98.3
+ }
+}

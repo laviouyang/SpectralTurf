@@ -13,6 +13,8 @@ Endpoints:
   POST /api/ai/weather-check  -> Steps 6-7: AI Weather Check for the field on the map (login)
   POST /api/ai/ask            -> Step 10: "Ask SpectralTurf" AI assistant (Gemini + read-only tools) (login)
   POST /api/fields            -> Version 2: save a field to My Fields WITHOUT analyzing it (login)
+  POST /api/photo/classify    -> Stage 11: "Check a photo" - which photo category it LOOKS MOST LIKE,
+                                 not a diagnosis (login; photo_classifier.py; photo never stored)
 
 Public-website safety limits (login lockout, daily caps) are at the end of this file
 (backend/limits.py); they are only on when deployed (Render) or with USAGE_LIMITS=on.
@@ -30,10 +32,12 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 import accounts
 import assistant
+import photo_classifier  # added 2026-11-26 (Stage 11 "Check a photo"; model loads on first photo)
 import indices
 import predict
 import regions
@@ -475,12 +479,18 @@ def ask(body: AskRequest, request: Request, user=Depends(required_user), db=Depe
         raise HTTPException(status_code=400,
                             detail=f"Questions can be at most {assistant.MAX_QUESTION_CHARS} characters.")
     check_as_of(body.as_of)
-    photo = None
+    # Changed 2026-11-26 (student request): the photo is NO LONGER sent to Gemini. Our own photo
+    # classifier runs on it here, and Gemini only gets the result (percentages, top class,
+    # Uncertain) through the classify_photo tool. The photo itself is never stored.
+    photo_result = None
     if body.photo:
         try:
-            photo = assistant.clean_photo(body.photo)
+            raw = assistant.photo_bytes(body.photo)
+            photo_result = photo_classifier.classify(raw)
         except assistant.AssistantError as e:
             raise HTTPException(status_code=400, detail=str(e))
+        except photo_classifier.PhotoError as e:
+            raise HTTPException(status_code=e.status, detail=str(e))
     screen, analyze_screen = None, None
     if body.geometry is not None:
         geometry = clean_polygon(body.geometry)
@@ -507,6 +517,7 @@ def ask(body: AskRequest, request: Request, user=Depends(required_user), db=Depe
         raise HTTPException(status_code=429, detail=str(e))
     saved = accounts.list_analyses(db, user["id"]) if user else []  # only this user's rows (read only)
     ctx = assistant.Context(user is not None, saved, screen, analyze_screen, body.as_of)
+    ctx.photo_result = photo_result
     if body.field is not None:  # Version 2: answer only about the field the user picked
         picked = body.field.strip().lower()
         if picked == "screen":
@@ -526,9 +537,35 @@ def ask(body: AskRequest, request: Request, user=Depends(required_user), db=Depe
     elif ctx.focus:
         ctx.grass_region = regions.resolve(body.region, ctx.fields[ctx.focus]["geometry"])
     try:
-        return assistant.ask(question, ctx, photo=photo)
+        return assistant.ask(question, ctx)
     except assistant.AssistantError as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+# Stage 11 on the website (2026-11-26): "Check a photo" (backend/photo_classifier.py).
+# The photo is sent as the request body itself (Content-Type image/jpeg, image/png or image/webp),
+# so no extra upload library is needed. It is re-saved without metadata, classified, and dropped.
+photo_limiter = assistant.RateLimiter(per_minute=10, per_day=10**9)  # per minute, like Ask; daily caps in limits.py
+
+
+@app.post("/api/photo/classify")
+async def classify_photo(request: Request, user=Depends(required_user)):
+    """Which of our 6 photo categories the photo LOOKS MOST LIKE, with a percentage for each,
+    or "Uncertain — inspect in person" below the cutoff. Not a diagnosis. Login required."""
+    size = request.headers.get("content-length")
+    if size and size.isdigit() and int(size) > photo_classifier.MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=413, detail=f"The photo is too big "
+                            f"(max {photo_classifier.MAX_PHOTO_BYTES // (1024 * 1024)} MB).")
+    raw = await request.body()
+    try:
+        photo_limiter.check(f"user:{user['id']}")
+    except assistant.AssistantError as e:
+        raise HTTPException(status_code=429, detail=str(e).replace("questions", "photo checks"))
+    try:
+        # Runs in a worker thread so the server keeps answering other requests meanwhile.
+        return await run_in_threadpool(photo_classifier.classify, raw)
+    except photo_classifier.PhotoError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
 
 
 # ---------------------------------------------------------------------------

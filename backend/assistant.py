@@ -19,11 +19,15 @@ Tools (all READ ONLY; a field is "screen" = the field drawn on the map, or "fiel
   get_expected_vs_observed(field)  Stage 10 AI weather check (observation vs AI estimate + forecast)
   get_ranking                      Step 8 My Fields ranking (logged-in users only)
   get_field_history(field)         saved analyses + clear satellite images of the last 60 days
+  classify_photo(photo)            (added 2026-11-26) our photo classifier's result for the photo
+                                   attached to the question: % per category, top category, Uncertain
 
-Photos (added 2026-11-22): the user may attach ONE photo of the field. The server re-saves it as
-a small JPEG (max 1024 px), which removes hidden data such as GPS location and camera details,
-sends it with the question, and never stores it. A photo is NOT a measurement: the AI may only
-describe what is plainly visible and must not name a disease, pest or cause from it.
+Photos (added 2026-11-22, CHANGED 2026-11-26 at the student's request): the user may attach ONE
+photo. It is NO LONGER sent to Gemini. The server runs our own photo classifier on it
+(photo_classifier.py: re-saved without GPS/EXIF data, never stored) and Gemini only gets the
+RESULT through the classify_photo tool. Approved rule (2026-11-26): the answer may say which
+category the photo "looks most like", always with "not a diagnosis - confirm with an expert",
+and never names a specific disease or pest beyond our categories (checked in code).
 
 Privacy: Gemini only ever sees field DATA (numbers, dates, labels like "field-1").
 Never usernames, passwords, tokens, field names the user typed, or map coordinates.
@@ -94,11 +98,16 @@ Rules (always follow them):
    detail. Thresholds and rules in the app are project choices, not published standards.
 9. Keep answers short (about 150 words or less), in plain language for a non-expert.
 10. If the question is not about the user's fields or SpectralTurf, say you can only help with those.
-11. If the user attaches a photo: it is their own photo, NOT a measurement, and you cannot know when
-   or where it was taken. Describe only what is plainly visible (green, yellow or brown areas, bare or
-   worn spots, standing water, lines) in plain words, and suggest where to look in person. Never name
-   a disease, pest or cause from a photo, never estimate NDVI or any other number from it, and do not
-   count things in it. Satellite numbers still come only from the tools.
+11. Photos: you can NOT see photos. If the context says a photo is attached, call classify_photo to
+   get SpectralTurf's photo classifier result (a percentage for each category, the top category, and
+   whether it is "Uncertain"). Explain it ONLY with this wording: "The photo looks most like <category>
+   (<percent>%) - not a diagnosis, confirm with an expert." If it is Uncertain, say the photo check is
+   uncertain, to inspect in person, and that it is not a diagnosis. Use only the category names from the
+   tool result; never name a specific disease, fungus or pest, and never say what caused it. Mention any
+   notes in the result (for example winter dormancy). You may compare it with the chosen field's
+   satellite results from the other tools (for example "the satellite image of <date> also showed lower
+   NDVI"), but the photo is not a measurement and you cannot know when or where it was taken. Never
+   estimate NDVI or any other number from a photo.
 12. If a tool result has "grass_region", mention the field's region (number and name) once, and say
    whether SpectralTurf is validated there. If it is not validated, say the baseline, color cutoff
    and AI model were made from Denver-area fields, so those results may not be accurate there."""
@@ -161,6 +170,8 @@ class Context:
         self.focus = focus
         # Added 2026-11-25: the grass region (regions.describe) of the field the questions are about.
         self.grass_region = None
+        # Added 2026-11-26: photo_classifier.classify() result for the attached photo, or None.
+        self.photo_result = None
         self.saved = saved if logged_in else []
         self.screen = screen
         self.analyze_screen = analyze_screen
@@ -410,6 +421,24 @@ def tool_get_field_history(ctx, args):
     return out
 
 
+def tool_classify_photo(ctx, args):
+    """Added 2026-11-26: the classifier result for the attached photo (Gemini never sees the photo)."""
+    if not ctx.photo_result:
+        raise ToolDataError("No photo is attached to this question.")
+    r = ctx.photo_result
+    return {"kind": "photo check (AI)", "label": r["label"],
+            "categories_percent": {c["name"]: c["percent"] for c in r["classes"]},
+            "top_category": r["top_class"]["name"], "top_percent": r["top_class"]["percent"],
+            "uncertain": r["uncertain"], "answer": r["answer"],
+            "uncertain_rule": f"Uncertain when the top category is below {r['uncertain_cutoff_percent']}% "
+                              "(a project choice made on training photos).",
+            "required_wording": "looks most like <category> - not a diagnosis, confirm with an expert",
+            "notes": r["notes"], "test_accuracy": r.get("accuracy")}
+
+
+PHOTO_PARAM = {"type": "object",
+               "properties": {"photo": {"type": "string",
+                                        "description": "'attached' = the photo attached to this question"}}}
 FIELD_PARAM = {"type": "object", "required": ["field_id"],
                "properties": {"field_id": {"type": "string",
                                            "description": "'screen' (the field on the map) or one of the "
@@ -424,6 +453,10 @@ TOOLS = {
                                  "next-week risk forecast, and a cloudy-day AI estimate.", FIELD_PARAM),
     "get_ranking": (tool_get_ranking, "Rank the user's saved fields: which to inspect first "
                                       "(logged-in users only).", None),
+    "classify_photo": (tool_classify_photo,
+                       "SpectralTurf's photo classifier result for the photo attached to this question: "
+                       "which category it looks most like (not a diagnosis), with a percentage for each.",
+                       PHOTO_PARAM),
     "get_field_history": (tool_get_field_history,
                           "History of a field: saved analyses and clear satellite images of the last 60 days.",
                           FIELD_PARAM),
@@ -518,6 +551,30 @@ DISEASE_RE = re.compile(
     re.IGNORECASE)
 
 
+# Added 2026-11-26: specific disease / pest names are never allowed (our categories are only
+# "Fungal disease" and "Insect damage"); a mention of the photo result needs the approved wording.
+SPECIFIC_NAME_RE = re.compile(
+    r"\b(brown patch|dollar spot|anthracnose|pythium|snow molds?|necrotic ring spot|fairy rings?|"
+    r"leaf spot|melting out|rusts?|summer patch|red thread|powdery mildew|take-all|gray leaf spot|"
+    r"spring dead spot|grubs?|chinch bugs?|billbugs?|sod webworms?|cutworms?|armyworms?|"
+    r"japanese beetles?|crane fl(y|ies)|leatherjackets?|mites?|ataenius|bluegrass weevils?)\b",
+    re.IGNORECASE)
+PHOTO_WORDS_RE = re.compile(r"\b(photo|picture)", re.IGNORECASE)
+
+
+def photo_problems(answer, used):
+    """Problems with how a photo result is described (only when classify_photo gave a result)."""
+    results = [r for name, r in used if name == "classify_photo" and isinstance(r, dict) and "error" not in r]
+    if not results:
+        return []
+    names = [n for r in results for n in r["categories_percent"]]
+    low = answer.lower()
+    mentions = PHOTO_WORDS_RE.search(answer) or any(n.lower() in low for n in names)
+    if mentions and not ("not a diagnosis" in low and "expert" in low):
+        return ["it describes the photo result without 'not a diagnosis' and 'confirm with an expert'"]
+    return []
+
+
 def numbers_in(text):
     return [float(x) for x in NUMBER_RE.findall(text)]
 
@@ -555,7 +612,22 @@ def rule_problems(answer, sources):
         problems.append("it claims to know a cause or diagnoses the grass")
     if DISEASE_RE.search(answer):
         problems.append("it suggests a disease, pest or stress diagnosis")
+    if SPECIFIC_NAME_RE.search(answer):  # added 2026-11-26
+        problems.append("it names a specific disease or pest (only SpectralTurf's photo categories are allowed)")
     return problems
+
+
+def photo_bytes(data_b64):
+    """Added 2026-11-26: the raw bytes of a base64 chat photo, for our photo classifier
+    (photo_classifier.classify checks the format and size and re-saves it without metadata)."""
+    import photo_classifier
+    try:
+        raw = base64.b64decode(data_b64.split(",", 1)[-1], validate=True)  # allows "data:...;base64,"
+    except ValueError:
+        raise AssistantError("The photo could not be read. Please choose a JPEG, PNG or WebP image.")
+    if len(raw) > photo_classifier.MAX_PHOTO_BYTES:
+        raise AssistantError(f"The photo is too big (max {photo_classifier.MAX_PHOTO_BYTES // (1024 * 1024)} MB).")
+    return raw
 
 
 def clean_photo(data_b64):
@@ -613,8 +685,12 @@ def agent_loop(contents, ctx, call, used):
 
 def ask(question, ctx, call=None, photo=None):
     """Answer one question (each question is answered on its own, no chat memory).
-    photo: optional base64 JPEG from clean_photo()."""
+    photo: CHANGED 2026-11-26 - an optional photo_classifier.classify() result (same as setting
+    ctx.photo_result). The photo itself is never sent to Gemini; only this result, via a tool."""
     call = call or call_gemini
+    if photo is not None:
+        ctx.photo_result = photo
+    photo = ctx.photo_result
     question = (question or "").strip()
     if not question:
         raise AssistantError("Please type a question.")
@@ -623,28 +699,28 @@ def ask(question, ctx, call=None, photo=None):
 
     who = "logged in" if ctx.logged_in else "not logged in"
     screen = "a field is drawn on the map ('screen')" if ctx.screen else "no field is drawn on the map"
-    attached = "; the user attached a photo (not a measurement, see rule 11)" if photo else ""
+    attached = ("; the user attached a photo: you cannot see it, call classify_photo for SpectralTurf's "
+                "photo check result (see rule 11)") if photo else ""
     picked = f"; the user picked ONE field ('{ctx.focus}'): answer only about that field" if ctx.focus else ""
     if ctx.grass_region:  # added 2026-11-25 (rule 12)
         picked += (f"; the field is in grass {ctx.grass_region['label']} "
                    f"({ctx.grass_region['status']})")
     intro = f"[Context: the user is {who}; {screen}{picked}; answer as of {ctx.as_of.isoformat()}{attached}.]\n"
-    contents = [{"role": "user", "parts": [{"text": intro + question}]}]
-    if photo:
-        contents[0]["parts"].append({"inlineData": {"mimeType": "image/jpeg", "data": photo}})
+    contents = [{"role": "user", "parts": [{"text": intro + question}]}]  # text only, never the photo
     used = []
     answer = agent_loop(contents, ctx, call, used)
 
     sources = [json.dumps(result) for _, result in used] + [intro, question, SYSTEM_PROMPT]
-    problems = rule_problems(answer, sources) if answer else ["the answer was empty"]
+    problems = (rule_problems(answer, sources) + photo_problems(answer, used)) if answer else ["the answer was empty"]
     if problems:  # one chance to fix it
         contents.append({"role": "user", "parts": [{"text":
             "Your answer broke SpectralTurf's rules: " + "; ".join(problems) + ". Rewrite it. Use only "
             "numbers and dates copied from tool results (call tools again if needed); if the data is "
-            "missing, say 'not enough data'. No watering advice, no causes, no disease names."}]})
+            "missing, say 'not enough data'. No watering advice, no causes, no disease names. For a "
+            "photo: 'looks most like <category> - not a diagnosis, confirm with an expert'."}]})
         answer = agent_loop(contents, ctx, call, used)
         sources = [json.dumps(result) for _, result in used] + [intro, question, SYSTEM_PROMPT]
-        problems = rule_problems(answer, sources) if answer else ["the answer was empty"]
+        problems = (rule_problems(answer, sources) + photo_problems(answer, used)) if answer else ["the answer was empty"]
     tools_used = list(dict.fromkeys(name for name, _ in used))
     names = ctx.field_names()
     mentioned = {label: names[label] for label in names if re.search(rf"\b{label}\b", answer or "")}
