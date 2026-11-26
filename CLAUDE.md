@@ -6,7 +6,10 @@ The student must be able to explain every major part to judges, so keep code sim
 beginner-readable, and scientifically honest. Do not overengineer. Explain things simply.
 
 ## Current status (updated 2026-11-25, later) — read this first in a new conversation
-- Branch `main` (GitHub, pushed 2026-11-22, commit 71840e5): everything up to Render deploy prep.
+- Branch `main` (GitHub): 2026-11-25 the student asked to merge Version 2 -> main = merge commit
+  53b4197 of version-2 up to 0cf5953 (grass-region map) ONLY; Stage 11 commits (d0f14e8, 0bb8588)
+  deliberately NOT merged. Pushed main; pushed 0cf5953 to GitHub ui-redesign. All tests + build
+  passed first. render.yaml, requirements.txt and env vars unchanged (only frontend devDependencies).
 - Branch `version-2` (= the old `ui-redesign`, renamed LOCALLY 2026-11-25 at the student's
   request; it tracks GitHub's `ui-redesign`, which the STUDENT pushed on 2026-11-25 up to a15cc79;
   the GitHub name was not changed): new homepage,
