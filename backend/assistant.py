@@ -165,7 +165,7 @@ class Context:
         self.screen = screen
         self.analyze_screen = analyze_screen
         self.as_of = as_of
-        # field-1, field-2, ... = distinct saved outlines, newest first (same as My Fields)
+        # field-1, field-2, ... = one per saved field name, newest first (same as My Fields)
         self.fields = {f"field-{n}": f for n, f in enumerate(predict.distinct_saved_fields(self.saved), 1)}
         self.label_of_id = {f["id"]: label for label, f in self.fields.items()}
 

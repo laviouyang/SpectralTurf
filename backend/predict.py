@@ -519,11 +519,17 @@ def normal_summary(bundle, first_day, days):
 # ---------------------------------------------------------------------------
 
 def distinct_saved_fields(saved):
-    """One entry per distinct outline (+ exclusions), newest save first. `saved` is the
-    output of accounts.list_analyses for ONE user, so only their own fields are included."""
+    """One entry per saved field NAME, newest save first (2026-11-26, student request; same
+    rule as distinctFields in frontend/src/FieldPicker.jsx, so the drop-down, My Fields ranking
+    and AI tools list the same fields). Names are compared with spaces trimmed and case ignored;
+    if one name was saved more than once, only the newest counts. Saves without a name fall
+    back to the old rule (same outline + exclusions = same field). `saved` is the output of
+    accounts.list_analyses for ONE user, so only their own fields are included."""
     seen, fields = set(), []
     for item in saved:  # list_analyses is newest first
-        key = json.dumps([item["geometry"], item["exclusions"]], sort_keys=True)
+        name = (item.get("name") or "").strip().lower()
+        key = ("name:" + name if name else
+               "outline:" + json.dumps([item["geometry"], item["exclusions"]], sort_keys=True))
         if key in seen:
             continue
         seen.add(key)

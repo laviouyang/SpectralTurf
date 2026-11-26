@@ -151,8 +151,10 @@ with tempfile.TemporaryDirectory() as tmp:
     names = [e["field"]["name"] for e in ranked["fields"]]
     check("14. ranking: 'weather does NOT explain' first, failed checks last (with their reason)",
           names[0] == "B" and names[-1] == "C" and ranked["fields"][-1]["result"]["status"] == "error")
-    check("15. a field saved twice appears once (newest name kept)",
-          len(names) == 3 and "A again" in names and "A" not in names)
+    # Updated 2026-11-26 (student request): one entry per saved NAME, so the same outline saved
+    # under two names ("A" and "A again") now appears twice. See test_field_list.py.
+    check("15. the same outline saved under two names appears under both names",
+          len(names) == 4 and "A again" in names and "A" in names)
     check("16. a user only ever sees their OWN fields", "Bob's field" not in names)
     bob_ranked = predict.rank_my_fields(accounts.list_analyses(db, bob_id), date(2025, 7, 25), check=fake_check)
     check("17. ...and Bob only sees his", [e["field"]["name"] for e in bob_ranked["fields"]] == ["Bob's field"])

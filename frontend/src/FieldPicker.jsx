@@ -3,16 +3,21 @@
  * (AI Weather Check, What if?, Ask AI). Choices: the field drawn on the map (if any) and
  * every field saved in "My Fields".
  *
- * "My Fields" = distinct saved outlines (same outline + same exclusions = same field), newest
- * save first. This mirrors predict.distinct_saved_fields in the backend.
+ * "My Fields" = one entry per saved field NAME (2026-11-26, student request), newest save first.
+ * Names are compared like the "replace it?" pop-up does (spaces trimmed, upper/lower case
+ * ignored). If one name was somehow saved more than once, only the newest is shown. Two
+ * different names with the same outline are BOTH shown. Old saves without a name fall back to
+ * the old rule (same outline + same exclusions = same field).
+ * This mirrors predict.distinct_saved_fields in the backend.
  */
 
-// Saved analyses (newest first) -> one entry per distinct field.
+// Saved analyses (newest first) -> one entry per saved name.
 export function distinctFields(history) {
   const seen = new Set();
   const fields = [];
   for (const item of history) {
-    const key = JSON.stringify([item.geometry, item.exclusions]);
+    const name = (item.name || '').trim().toLowerCase();
+    const key = name ? `name:${name}` : `outline:${JSON.stringify([item.geometry, item.exclusions])}`;
     if (seen.has(key)) continue;
     seen.add(key);
     fields.push(item);
