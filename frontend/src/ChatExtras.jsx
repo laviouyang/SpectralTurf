@@ -2,9 +2,9 @@
  * ChatExtras.jsx - Photo and speech helpers for the "Ask SpectralTurf" chat.
  *
  *  PhotoButton   pick or take ONE photo of the field. It is shrunk in the browser (max 1600 px)
- *                before uploading; the server shrinks it again and removes hidden data such as
- *                the GPS location. A photo is NOT a measurement: the AI only describes what
- *                it can see and never names a disease or cause.
+ *                before uploading; the server removes hidden data such as the GPS location.
+ *                Since 2026-11-26 the photo is checked by OUR photo classifier on the server and
+ *                Gemini only gets that result ("looks most like..., not a diagnosis").
  *  MicButton     speak your question instead of typing it (the browser's speech recognition;
  *                in Chrome/Edge your voice is turned into text by the browser maker's servers).
  *                The words go into the text box so you can check them before pressing Ask.

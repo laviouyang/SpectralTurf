@@ -1,0 +1,29 @@
+{
+  "_about": "Shared test cases for the field drop-down rule (2026-11-26). Used by backend/test_field_list.py (predict.distinct_saved_fields) AND frontend/scripts/test_field_picker.mjs (FieldPicker.jsx distinctFields), so both sides are checked against the SAME expected answers. Saves are newest first, like accounts.list_analyses.",
+  "cases": [
+    {"name": "same outline saved under two names -> both shown",
+     "saved": [{"id": 2, "name": "North B", "shape": "A"}, {"id": 1, "name": "North A", "shape": "A"}],
+     "expected_ids": [2, 1]},
+    {"name": "same name saved twice -> only the newest",
+     "saved": [{"id": 5, "name": "Gates", "shape": "B"}, {"id": 3, "name": "Gates", "shape": "A"}],
+     "expected_ids": [5]},
+    {"name": "names compared with spaces trimmed and case ignored",
+     "saved": [{"id": 9, "name": " gates ", "shape": "A"}, {"id": 8, "name": "Gates", "shape": "B"}],
+     "expected_ids": [9]},
+    {"name": "same outline saved twice at different times, different names -> both shown",
+     "saved": [{"id": 7, "name": "June check", "shape": "A"}, {"id": 6, "name": "May check", "shape": "A"}, {"id": 4, "name": "Other", "shape": "B"}],
+     "expected_ids": [7, 6, 4]},
+    {"name": "old saves without a name: same outline still merged, different outlines kept",
+     "saved": [{"id": 12, "name": "", "shape": "A"}, {"id": 11, "name": "", "shape": "A"}, {"id": 10, "name": "", "shape": "B"}],
+     "expected_ids": [12, 10]},
+    {"name": "an unnamed save is not merged with a named save of the same outline",
+     "saved": [{"id": 14, "name": "", "shape": "A"}, {"id": 13, "name": "Village", "shape": "A"}],
+     "expected_ids": [14, 13]},
+    {"name": "no saves -> empty list",
+     "saved": [], "expected_ids": []}
+  ],
+  "shapes": {
+    "A": {"type": "Polygon", "coordinates": [[[-104.8790, 39.6355], [-104.8784, 39.6355], [-104.8784, 39.6360], [-104.8790, 39.6360], [-104.8790, 39.6355]]]},
+    "B": {"type": "Polygon", "coordinates": [[[-104.8146, 39.5913], [-104.8121, 39.5913], [-104.8121, 39.5931], [-104.8146, 39.5931], [-104.8146, 39.5913]]]}
+  }
+}

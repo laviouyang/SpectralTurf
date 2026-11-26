@@ -113,7 +113,7 @@ export default function AIWeatherCheck({ geometry, exclude, defaultAsOf }) {
     }
   }
 
-  // Runs once when the panel appears (after an analysis); "Check again" re-runs it.
+  // Runs once when the panel appears (after an analysis); "Check" re-runs it.
   useEffect(() => {
     run(startDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,7 +132,7 @@ export default function AIWeatherCheck({ geometry, exclude, defaultAsOf }) {
         </label>
       </div>
       <button type="button" onClick={() => run(asOf)} disabled={busy}>
-        {busy ? 'Checking…' : 'Check again'}
+        {busy ? 'Checking…' : 'Check'}
       </button>
       {busy && <p className="muted">Downloading real satellite + weather history…</p>}
       {error && <p className="problems-box">AI Weather Check failed: {error} (the analysis above is unaffected)</p>}

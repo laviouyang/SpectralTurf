@@ -1,0 +1,27 @@
+/* photocheck.css - styles for PhotoCheck.jsx ("Check a photo", added 2026-11-26). */
+.photo-check .photo-buttons { display: flex; flex-wrap: wrap; gap: var(--s1); margin: var(--s1) 0; }
+.photo-check-preview {
+  display: block; max-width: 100%; max-height: 220px; margin: var(--s1) 0;
+  border-radius: var(--radius-sm); border: 1px solid var(--line);
+}
+.photo-result { margin-top: var(--s1); }
+.photo-answer { font-size: 1.1rem; font-weight: 600; color: var(--forest); margin: 0 0 var(--s1); }
+.photo-answer.uncertain { color: var(--gold-ink); }
+.photo-bars { list-style: none; padding: 0; margin: 0 0 var(--s1); }
+.photo-bars li {
+  display: grid; grid-template-columns: minmax(0, 9.5rem) 1fr 3rem; align-items: center;
+  gap: var(--s1); font-size: 0.9rem; margin: 4px 0;
+}
+.photo-bars li.top { font-weight: 600; }
+.photo-bar-label { overflow-wrap: anywhere; }
+.photo-bar-track { background: var(--mint-soft); border-radius: 999px; height: 10px; overflow: hidden; }
+.photo-bar-fill { display: block; height: 100%; background: var(--teal); border-radius: 999px; }
+.photo-bars li.top .photo-bar-fill { background: var(--forest); }
+.photo-bar-value { text-align: right; font-variant-numeric: tabular-nums; }
+.photo-note {
+  background: var(--gold-soft); color: var(--gold-ink); border-radius: var(--radius-sm);
+  padding: 6px 10px; margin: 6px 0; font-weight: 600;
+}
+.photo-accuracy { margin-top: var(--s1); font-size: 0.9rem; }
+.photo-accuracy summary { cursor: pointer; color: var(--forest); font-weight: 600; }
+.photo-accuracy .photo-limit { color: var(--ink-muted); }

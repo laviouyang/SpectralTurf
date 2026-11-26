@@ -21,3 +21,16 @@ backend/ai_cache/
 
 # Reference images from other websites (NOT ours to publish; never commit)
 References/
+
+# Stage 11: turf photos - never commit photos until each license is checked.
+# Only the README and the metadata.csv template are tracked.
+photo_data/*
+!photo_data/README.md
+!photo_data/metadata.csv
+
+# Reference PDFs (other people's copyrighted articles; never commit)
+reference_articles/
+
+# Stage 11: CLIP embedding cache + trained photo model (made from photos whose licenses are not checked)
+ml_photo/cache/
+ml_photo/model/

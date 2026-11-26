@@ -38,6 +38,7 @@ import { AccountMenu, EmptyState, ResultsSkeleton, Spinner } from './AppChrome.j
 import { Icon, Logo } from './Icons.jsx';
 import { Link, navigate } from './router.jsx';
 import Modal from './Modal.jsx';
+import PhotoCheck from './PhotoCheck.jsx'; // Stage 11 (2026-11-26): "Check a photo"
 import { OUTSIDE_COLORADO_MESSAGE, isInColorado, polygonCenter } from './region.js';
 import { DATA as REGION_DATA, REGIONS, VALIDATED_REGION, regionById, regionOfPolygon, regionStatus } from './turfRegions.js';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut, saveField } from './api.js';
@@ -795,6 +796,10 @@ export default function App() {
                       user={user}
                       fieldLabel={pickedName(whatIfField)}
                     />
+                  </Panel>
+                  {/* Stage 11 (2026-11-26): photo classifier - "looks most like", not a diagnosis */}
+                  <Panel id="v2-photocheck" title="3. Check a photo — AI photo check" defaultOpen>
+                    <PhotoCheck />
                   </Panel>
                 </>
               )}

@@ -6,7 +6,10 @@ The student must be able to explain every major part to judges, so keep code sim
 beginner-readable, and scientifically honest. Do not overengineer. Explain things simply.
 
 ## Current status (updated 2026-11-25, later) — read this first in a new conversation
-- Branch `main` (GitHub, pushed 2026-11-22, commit 71840e5): everything up to Render deploy prep.
+- Branch `main` (GitHub): 2026-11-25 the student asked to merge Version 2 -> main = merge commit
+  53b4197 of version-2 up to 0cf5953 (grass-region map) ONLY; Stage 11 commits (d0f14e8, 0bb8588)
+  deliberately NOT merged. Pushed main; pushed 0cf5953 to GitHub ui-redesign. All tests + build
+  passed first. render.yaml, requirements.txt and env vars unchanged (only frontend devDependencies).
 - Branch `version-2` (= the old `ui-redesign`, renamed LOCALLY 2026-11-25 at the student's
   request; it tracks GitHub's `ui-redesign`, which the STUDENT pushed on 2026-11-25 up to a15cc79;
   the GitHub name was not changed): new homepage,
@@ -97,6 +100,58 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   map by Simple Lawn Solutions (visual reference only)" + Census/us-atlas + extensions.
   The old hand-drawn outline (us_outline) was removed. Re-run BOTH scripts after changing zones:
   python scripts/make_turf_regions.py .  then  cd frontend; node scripts/make_us_map.mjs
+- STAGE 11 PHOTO AI (2026-11-25, student request): PLAN ONLY, nothing built. docs/STAGE_11_PHOTO_AI.md
+  (CLIP + logistic regression baseline on CPU, then Colab fine-tune; split BY SITE; Unsure cutoff
+  chosen on CV, never on test). photo_data/<6 label folders> local only; git tracks only
+  photo_data/README.md + metadata.csv header (.gitignore photo_data/* with ! exceptions).
+  REFERENCE PDFs (2026-11-25): reference_articles/ (48 PDFs from the student's dad; git-ignored,
+  copyrighted) read with PyMuPDF (installed in backend venv only; NOT in requirements.txt) ->
+  docs/disease_references.csv (57 rows, own-words symptoms, permission "not asked") +
+  ml_photo/class_descriptions.md (CLIP prompts). Plan folder renamed photo_ai/ -> ml_photo/.
+  No images extracted.
+  STAGE 11 v1 TRAINED (2026-11-25): ml_photo/check_dataset.py (split BY GROUP = site > recording time
+  in file name > source article; fewest-group class picks first; <30/class = warning only, student
+  request) -> photo_data/split.csv; ml_photo/train_v1.py (CLIP ViT-B/32 CPU, torch/transformers in
+  backend venv but NOT requirements.txt; embeddings cache ml_photo/cache/, model ml_photo/model/ both
+  git-ignored). Student asked to put ALL insect-PDF images in insect_damage (59: mostly insect
+  close-ups/weeds/cereal crops, named ref_<kind>_NNN.jpg). RESULTS (test, results_v1.md): baseline 41.7%;
+  zero-shot 2.9% (predicts fungal for almost all); logreg 90.0% acc / 69.3% balanced, Uncertain 27.4%
+  (cutoff 0.75 from train CV), 97.1% on answered. Each class = a different photo source -> likely
+  learns the source; wear/dormant 2 test photos each. healthy/drought = robot-camera video frames
+  2022-10-18 with no metadata rows; photo_data/grass/ (660) not a class.
+  OPEN DECISION: disease/insect labels conflict with the "no diagnosis" rule -> research-only or
+  "looks most similar to... not a diagnosis" wording; ask the student before any app step.
+- 2026-11-26 (student requests, on `version-2`, then merged into main):
+  FIELD LIST = one entry per saved NAME (trimmed, case ignored; same name twice -> newest; unnamed
+  saves fall back to same-outline rule) in FieldPicker.distinctFields AND predict.distinct_saved_fields
+  (drop-down, My Fields ranking, What-if, Ask). Shared cases backend/field_list_cases.json; tests
+  backend/test_field_list.py 10/10 + frontend/scripts/test_field_picker.mjs 7/7 (node); test_predict
+  15 updated (same outline under 2 names -> both). AIWeatherCheck button "Check again" -> "Check".
+  STAGE 11 ON THE WEBSITE ("Check a photo", AI Check tab panel 3): ml_photo/export_onnx.py -> CLIP
+  ViT-B/32 image encoder ONNX, WEIGHT-ONLY int8 (MatMulNBits 8 bit, block 128; dynamic int8 was tried
+  first: only 96.8%/94.7% agreement) = backend/photo_model/clip_image_int8.onnx (98.3 MB, committed;
+  GitHub limit 100 MB) + photo_classifier_v1.json (logreg 6x512, cutoff 0.75, test results).
+  vs original on the 379 test photos (ml_photo/results_onnx.md): same top class 99.7%, same final
+  answer incl. Uncertain 98.9% (4 differ); accuracy 90.0% / balanced 69.3% / Uncertain 27.4% /
+  answered 96.7% (original 97.1%). The server re-saves photos as lossless PNG (a JPEG re-save changed
+  CLIP's answers: cosine 0.88). backend/photo_classifier.py (numpy + onnxruntime only; torch never
+  loaded; model loaded on first photo). Memory (Windows, whole backend): idle 154 MB, after a photo
+  ~290 MB, peak 320 MB; worst allowed upload ~352 MB (big JPEGs decoded at reduced size with draft;
+  PNG/WebP max 4 MP because a 49 MP WebP needed ~1 GB). NOT measured on Render itself.
+  POST /api/photo/classify (login; raw image body; jpg/png/webp <= 10 MB; 10/min per user + limits.py
+  kind "photo" 50/user/day, 1000 total; never stored) -> % per class (sum exactly 100), top class,
+  "Uncertain — inspect in person" below 75%, notes "Not a diagnosis — confirm with an expert." +
+  Nov-Mar "Brown grass may be normal winter dormancy.", accuracy facts. PhotoCheck.jsx (upload / take
+  photo; sends the original file if within limits, else a 1600 px PNG). requirements.txt +
+  onnxruntime==1.32.0. ASK: chat photos are NO LONGER sent to Gemini; main.ask runs the classifier,
+  ctx.photo_result -> new tool classify_photo; prompt rule 11 rewritten (approved wording only);
+  checks: photo_problems (mention needs "not a diagnosis" + "expert") and SPECIFIC_NAME_RE (no specific
+  disease/pest names, always). Chat photos are still shrunk to a 1600 px JPEG in the browser
+  (ChatExtras), so chat answers can differ slightly from "Check a photo". Tests
+  backend/test_photo_classify.py 31/31; test_assistant 43-45 updated (photo not sent). Checked in
+  Chrome (ports 8001/5175, throwaway DB, deleted): upload -> Uncertain + bars + notes + accuracy.
+  NOT verified: a real Gemini answer with a photo (Gemini returned 503 "busy" twice), camera button
+  on a phone, Render memory/onnxruntime install.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
@@ -111,10 +166,11 @@ python test_indices.py; python test_accounts.py; python test_predict.py
 python test_assistant.py; python test_limits.py
 python test_ask_focus.py; python test_analyze_save.py; python test_save_field.py   # version-2 only
 python test_ai_login.py; python test_regions.py   # version-2 only
+python test_field_list.py; python test_photo_classify.py   # added 2026-11-26
 cd ..
 python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
 python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py
-cd frontend; npm.cmd run build
+cd frontend; node scripts/test_field_picker.mjs; npm.cmd run build
 ```
 (Git Bash: set PYTHONIOENCODING=utf-8 first, or printing can crash on this PC's GBK encoding.)
 
@@ -134,6 +190,7 @@ User searches a place in Colorado → draws a polygon around sports-field turf �
 fetches real Sentinel-2 L2A data → computes NDVI and NDMI → shows results, observation
 date, data quality, and limitations. It prioritizes areas that "may warrant inspection".
 It must NOT claim to diagnose disease, prove drought, prescribe watering, or control irrigation.
+PHOTO RULE (approved by the student 2026-11-26, exact wording): the app may show which photo category a picture "looks most like," as long as it says it is not a diagnosis and to confirm with an expert.
 
 ## Non-negotiable rules
 - Never fabricate imagery, dates, index values, or weather. On failure, show an honest

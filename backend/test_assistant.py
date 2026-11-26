@@ -330,18 +330,25 @@ check("41. other formats (GIF) are refused", "JPEG, PNG or WebP" in photo_error(
 check("42. too-big files are refused",
       "too big" in photo_error(base64.b64encode(b"x" * (assistant.MAX_PHOTO_BYTES + 1)).decode()))
 
+# Changed 2026-11-26 (student request): the photo is NO LONGER sent to Gemini. Only our photo
+# classifier's RESULT is available, through the classify_photo tool (more in test_photo_classify.py).
+import photo_classifier  # noqa: E402
+fake_info = {"classes": ["healthy", "drought", "fungal_disease", "insect_damage", "wear", "dormant"],
+             "uncertain_cutoff": 0.75, "uncertain_label": "Uncertain — inspect in person"}
+photo_result = photo_classifier.result_from_probabilities([0.9, 0.05, 0.02, 0.01, 0.01, 0.01], fake_info,
+                                                          today=date(2026, 7, 1))
 visitor = assistant.Context(False, [], None, None, AS_OF)
-fake = FakeGemini(text("The photo shows green grass. Check it in person."))
-reply = assistant.ask("What is in my photo?", visitor, call=fake, photo="QUJD")
+fake = FakeGemini(text("I can't see photos. Check it in person."))
+reply = assistant.ask("What is in my photo?", visitor, call=fake, photo=photo_result)
 first = fake.sent[0][0]["parts"]
-check("43. the photo is sent to Gemini with the question, and the reply says a photo was used",
-      first[1] == {"inlineData": {"mimeType": "image/jpeg", "data": "QUJD"}} and reply["photo_used"]
-      and "attached a photo" in first[0]["text"])
+check("43. the photo is NOT sent to Gemini (text only); it is told to call classify_photo",
+      len(first) == 1 and "inlineData" not in json.dumps(fake.sent) and reply["photo_used"]
+      and "classify_photo" in first[0]["text"])
 diagnosis = text("This looks like dollar spot.")
 check("44. naming a disease from a photo is blocked",
-      assistant.ask("What is it?", visitor, call=FakeGemini(diagnosis, diagnosis), photo="QUJD")["status"] == "blocked")
+      assistant.ask("What is it?", visitor, call=FakeGemini(diagnosis, diagnosis), photo=photo_result)["status"] == "blocked")
 check("45. saying it CAN'T identify diseases is fine",
-      assistant.ask("What is it?", visitor, photo="QUJD", call=FakeGemini(
+      assistant.ask("What is it?", visitor, photo=photo_result, call=FakeGemini(
           text("I can't identify diseases from a photo. Check the brown area in person.")))["status"] == "ok")
 assistant.limiter = assistant.RateLimiter()
 main.app.dependency_overrides[main.required_user] = lambda: {"id": 1, "username": "photo_tester"}  # login required since 2026-11-25 (Version 2)
