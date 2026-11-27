@@ -70,8 +70,9 @@ export function SiteFooter() {
         <div>
           <Brand />
           <p className="footer-disclaimer">
-            Decision support, not a diagnosis or irrigation controller. A person always makes the
-            final call after looking at the field.
+            Decision support for sports-field managers and grounds crews, not an irrigation
+            controller. Photo AI results are preliminary: confirm with a turf expert before treating.
+            A person always makes the final call after looking at the field.
           </p>
         </div>
         <div>

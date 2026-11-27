@@ -2,6 +2,8 @@
  * AboutPage.jsx - "/about": what SpectralTurf is, the science, the AI, and its limits
  * (added 2026-11-23, UI redesign). The facts here match the README and the code;
  * thresholds are labeled as this project's choices, not published standards.
+ * 2026-11-26: photo AI section added (numbers from backend/photo_model/photo_classifier_v1.json),
+ * assistant/privacy updated (photos no longer go to Gemini), target audience named.
  */
 import { Link } from './router.jsx';
 import { SiteFooter, SiteNav } from './SiteChrome.jsx';
@@ -13,6 +15,7 @@ const SECTIONS = [
   ['indices', 'The three measurements'],
   ['rule', 'The inspection flag'],
   ['ai', 'The AI model'],
+  ['photo', 'The photo AI'],
   ['assistant', 'The AI assistant'],
   ['regions', 'Grass regions'],
   ['limits', 'Limitations'],
@@ -32,7 +35,8 @@ export default function AboutPage() {
             <h1>How SpectralTurf works, and what it can&apos;t do</h1>
             <p className="lead">
               A high-school project that turns free satellite images into a short list of turf areas
-              worth inspecting. Every method and limit is written down here so anyone can check it.
+              worth inspecting, plus a photo AI for a closer look on site. Every method and limit is
+              written down here so anyone can check it.
             </p>
           </div>
         </header>
@@ -51,14 +55,18 @@ export default function AboutPage() {
             <section id="what">
               <h2>What it is</h2>
               <p>
-                SpectralTurf helps the people who look after large areas of grass (parks, school
-                fields, sports complexes) decide <strong>where to look first</strong>. You outline a
-                field in Colorado; the app analyzes a real Sentinel-2 satellite image of it and marks
-                the parts that may warrant inspection.
+                SpectralTurf is built for <strong>sports-field managers, park and school grounds
+                crews, and city parks departments</strong>: the teams who look after large areas of
+                grass. It helps them decide <strong>where to look first</strong>. You outline a field
+                in Colorado; the app analyzes a real Sentinel-2 satellite image of it and marks the
+                parts that may warrant inspection. On site, the photo AI (in the AI Diagnosis tab)
+                says which of 6 categories a photo of the turf looks most like.
               </p>
               <p>
-                It is <strong>decision support</strong>. It does not diagnose disease, prove drought,
-                prescribe watering, or control irrigation. A person always checks the field in person.
+                It is <strong>decision support</strong>. Photo results are a <strong>preliminary AI
+                result</strong> that a turf expert should confirm before anything is treated. It does
+                not prove drought, prescribe watering, or control irrigation. A person always checks
+                the field in person.
               </p>
             </section>
 
@@ -152,13 +160,57 @@ export default function AboutPage() {
               </p>
             </section>
 
+            <section id="photo">
+              <h2>The photo AI</h2>
+              <p>
+                In the <strong>AI Diagnosis</strong> tab you can upload or take one photo of turf. The
+                app says which of 6 categories it <strong>looks most like</strong>, with a percentage
+                for each: healthy-looking grass, drought stress, fungal disease, insect damage, wear
+                (foot traffic) and dormant grass. If the top category is below 75% (a project choice
+                made on the training photos), it says &ldquo;Uncertain — inspect in person&rdquo;
+                instead. From November to March it adds that brown grass may be normal winter
+                dormancy. Every result says: &ldquo;Preliminary AI result — it can be wrong. Confirm
+                with a turf expert before treating.&rdquo;
+              </p>
+              <ul>
+                <li>
+                  <strong>How it works:</strong> OpenAI&apos;s CLIP image model (ViT-B/32) turns the
+                  photo into 512 numbers, and a logistic-regression classifier trained by this project
+                  turns those into the 6 percentages. It runs on our own server; the photo is not
+                  sent to Google Gemini.
+                </li>
+                <li>
+                  <strong>Shrunk for a small server:</strong> the image model was converted to ONNX
+                  with 8-bit weights (352 MB to 98 MB). On the 379 test photos it gave the same final
+                  answer as the original model for 98.9% of them.
+                </li>
+                <li>
+                  <strong>Test results:</strong> on 379 photos it never saw during training (kept
+                  apart by site or source) it picked the right category for 90.0%. Averaged over the 6
+                  categories, so the small ones count equally, it was right for 69.3%. It said
+                  &ldquo;Uncertain&rdquo; for 27.4%; when it did answer, it was right 96.7% of the time.
+                </li>
+              </ul>
+              <p className="callout">
+                <strong>Honest limits:</strong> most training photos came from public datasets and
+                published articles, not real sports fields, and each category came mostly from one
+                source, so the AI may partly recognize the source rather than the problem. Real-world
+                accuracy may be lower. Wear and dormant grass had only 2 test photos each (it got 0 of
+                the 2 wear photos right). The labels come from captions and folder names and were not
+                checked by a turf expert. It never names a specific disease or pest.
+              </p>
+            </section>
+
             <section id="assistant">
               <h2>The AI assistant (Ask SpectralTurf)</h2>
               <p>
                 Google Gemini writes the answers, but it can only use read-only tools that return your
                 field&apos;s real results. The server checks every answer: each number must come from
-                those results, and answers with watering amounts, cause claims, or disease guesses are
-                blocked. Photos are only described, never diagnosed.
+                those results, and answers with watering amounts, cause claims, or specific disease or
+                pest names are blocked. If you attach a photo, our own photo AI checks it on the
+                server and Gemini only receives the result (the percentages), never the photo. Any
+                answer about the photo must say it is a preliminary AI result to confirm with a turf
+                expert.
               </p>
             </section>
 
@@ -209,6 +261,7 @@ export default function AboutPage() {
                 <li>Artificial turf looks green to the eye but has low NDVI.</li>
                 <li>The baseline, color cutoff and AI model are validated only for Denver-area fields (Region 3); grass-region boundaries are approximate.</li>
                 <li>Low values say <em>where</em> to look, never <em>why</em>: wear, mowing, dormancy, disease or watering problems can all look alike from space.</li>
+                <li>The photo AI was trained mostly on photos from public datasets and articles, not real sports fields; many problems look alike in a photo, so its result is preliminary and a turf expert should confirm it.</li>
               </ul>
             </section>
 
@@ -216,9 +269,10 @@ export default function AboutPage() {
               <h2>Privacy</h2>
               <p>
                 Accounts are optional and need only a username and password (no email). Passwords are
-                stored as scrypt hashes. Saved fields are visible only to their owner. Questions,
-                field numbers and photos sent to the assistant go to Google Gemini. Usernames, field
-                names and map locations are not sent, and photo location data is removed first.
+                stored as scrypt hashes. Saved fields are visible only to their owner. Questions and
+                field numbers sent to the assistant go to Google Gemini. Usernames, field names and
+                map locations are not sent. Photos are checked on our own server and never sent to
+                Gemini or stored; hidden photo data (GPS location, camera, time) is removed first.
               </p>
             </section>
 
@@ -229,6 +283,7 @@ export default function AboutPage() {
                 <li>Weather data by Open-Meteo.com.</li>
                 <li>Field outlines and place search © OpenStreetMap contributors (Overpass, Nominatim).</li>
                 <li>Drawing basemap: Esri World Imagery (for drawing only; not used in the analysis).</li>
+                <li>Photo AI image features: CLIP ViT-B/32 by OpenAI (MIT license).</li>
               </ul>
               <p><Link to="/app" className="btn btn-primary">Open the app</Link></p>
             </section>

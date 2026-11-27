@@ -25,6 +25,8 @@ const PATHS = {
   alert: 'M12 3 2 20h20Z M12 10v4 M12 17h.01',
   people: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z M2.5 20a6.5 6.5 0 0 1 13 0 M16 4.5a3.5 3.5 0 0 1 0 6.5 M18 14a6.5 6.5 0 0 1 3.5 6',
   ruler: 'M3 17 17 3l4 4L7 21Z M7 13l2 2 M10 10l2 2 M13 7l2 2',
+  // added 2026-11-26 for the photo AI on the homepage
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4Z M12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z',
 };
 
 export function Icon({ name, size = 24, className = '' }) {
