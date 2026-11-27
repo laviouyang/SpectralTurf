@@ -159,6 +159,11 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   assistant photo check now needs "preliminary" + "expert" (prompt rule 11, required_wording, retry
   text). Other "not a diagnosis" text (weather check, site footer, README) NOT changed.
   test_photo_classify 32/32 (24b: old wording alone blocked). Checked in Chrome (8001/5175, throwaway DB).
+  HOMEPAGE/ABOUT/FOOTER (student): target audience named = sports-field managers, park and school
+  grounds crews, city parks departments (new homepage "Who it's for" section; "Built for" only, no
+  claim they use it); photo AI added (feature card, How it works step 4, trust block with the real
+  photo_classifier_v1.json results + limits; About "The photo AI" section, assistant/privacy updated:
+  photos not sent to Gemini; CLIP credited). Checked in Chrome desktop + 390 px iframe.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
