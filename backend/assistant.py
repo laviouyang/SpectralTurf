@@ -66,14 +66,14 @@ MAX_PHOTO_PIXELS = 50_000_000          # refuses absurd "image bombs"
 PHOTO_SIDE = 1024                      # the photo Gemini sees is at most 1024 px wide/high
 PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
 
-UI_LABEL = "AI-generated explanation based on SpectralTurf data. Confirm in person."
-NOT_SET_UP = ("Ask SpectralTurf is not available right now: the server has no working Gemini key. "
-              "Everything else in SpectralTurf still works.")
-BLOCKED = ("Sorry, the AI's answer did not pass SpectralTurf's safety checks (numbers must come "
-           "from SpectralTurf data; no watering advice or causes), so it is not shown. "
+UI_LABEL = "AI-generated explanation based on SpectralTurf AI data. Confirm in person."
+NOT_SET_UP = ("Ask SpectralTurf AI is not available right now: the server has no working Gemini key. "
+              "Everything else in SpectralTurf AI still works.")
+BLOCKED = ("Sorry, the AI's answer did not pass SpectralTurf AI's safety checks (numbers must come "
+           "from SpectralTurf AI data; no watering advice or causes), so it is not shown. "
            "Try asking more simply, or use the panels above.")
 
-SYSTEM_PROMPT = """You are "Ask SpectralTurf", the assistant inside SpectralTurf AI, a student-built
+SYSTEM_PROMPT = """You are "Ask SpectralTurf AI", the assistant inside SpectralTurf AI, a student-built
 app that uses Sentinel-2 satellite images and weather to suggest which grass sports fields may
 warrant an in-person inspection.
 
@@ -98,7 +98,7 @@ Rules (always follow them):
 8. NDVI (greenness) uses 10 m pixels; NDMI (moisture) uses 20 m pixels, so never imply finer
    detail. Thresholds and rules in the app are project choices, not published standards.
 9. Keep answers short (about 150 words or less), in plain language for a non-expert.
-10. If the question is not about the user's fields or SpectralTurf, say you can only help with those.
+10. If the question is not about the user's fields or SpectralTurf AI, say you can only help with those.
 11. Photos: you can NOT see photos. If the context says a photo is attached, call classify_photo to
    get SpectralTurf's photo classifier result (a percentage for each category, the top category, and
    whether it is "Uncertain"). Explain it ONLY with this wording: "The photo looks most like <category>
@@ -145,7 +145,7 @@ class RateLimiter:
         if self.day != today:
             self.day, self.day_count = today, 0
         if self.day_count >= self.per_day:
-            raise AssistantError("Ask SpectralTurf has reached its daily limit. Please try again tomorrow.")
+            raise AssistantError("Ask SpectralTurf AI has reached its daily limit. Please try again tomorrow.")
         times.append(now)
         self.day_count += 1
 

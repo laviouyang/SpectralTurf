@@ -314,9 +314,9 @@ export default function App() {
     <div className="app-shell" data-sheet={sheetOpen ? 'open' : 'closed'} data-panel={panelHidden ? 'hidden' : 'shown'}>
       {/* ---- Slim top bar: logo, place search, account ---- */}
       <header className="app-topbar">
-        <Link to="/" className="brand" aria-label="SpectralTurf home">
+        <Link to="/" className="brand" aria-label="SpectralTurf AI home">
           <Logo size={30} />
-          <span className="brand-name">SpectralTurf</span>
+          <span className="brand-name">SpectralTurf AI</span>
         </Link>
         {/* Version 2: the place search moved into the Analyze tab (student request). */}
         {!user ? (
@@ -407,7 +407,7 @@ export default function App() {
         )}
 
         {/* ---- Floating panel (desktop) / bottom sheet (phones) ---- */}
-        <aside className="float-panel" aria-label="SpectralTurf tools">
+        <aside className="float-panel" aria-label="SpectralTurf AI tools">
           <button
             type="button"
             className="sheet-handle"
@@ -810,7 +810,7 @@ export default function App() {
                 <Panel id="v2-photocheck" title="Check a photo — AI photo check" defaultOpen>
                   <PhotoCheck />
                 </Panel>
-                <Panel id="v2-ask" title="Ask SpectralTurf — AI agent" defaultOpen>
+                <Panel id="v2-ask" title="Ask SpectralTurf AI — agent" defaultOpen>
                   <FieldPicker
                     label="First, pick the field your questions are about"
                     value={askReady ? askField : ''}

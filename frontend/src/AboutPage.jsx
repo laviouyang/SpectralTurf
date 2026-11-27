@@ -27,7 +27,7 @@ export default function AboutPage() {
         <header className="about-hero">
           <div className="container">
             <p className="eyebrow">About &amp; methodology</p>
-            <h1>How SpectralTurf works, and what it can&apos;t do</h1>
+            <h1>How SpectralTurf AI works, and what it can&apos;t do</h1>
             <p className="lead">
               A high-school project. It is decision support: it shows where to look, and a person
               always checks the field before acting.
@@ -107,7 +107,7 @@ export default function AboutPage() {
                   should confirm.
                 </li>
                 <li>
-                  <strong>Ask SpectralTurf:</strong> Google Gemini writes the answers, but only from
+                  <strong>Ask SpectralTurf AI:</strong> Google Gemini writes the answers, but only from
                   read-only tools that return your field&apos;s real results. The server checks every
                   answer: numbers must come from the tools, and watering amounts, cause claims and
                   specific disease or pest names are blocked.

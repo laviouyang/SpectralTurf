@@ -11,9 +11,9 @@ export const GITHUB_URL = 'https://github.com/laviouyang/SpectralTurf';
 
 export function Brand() {
   return (
-    <Link to="/" className="brand" aria-label="SpectralTurf home">
+    <Link to="/" className="brand" aria-label="SpectralTurf AI home">
       <Logo size={32} />
-      <span className="brand-name">SpectralTurf</span>
+      <span className="brand-name">SpectralTurf AI</span>
     </Link>
   );
 }

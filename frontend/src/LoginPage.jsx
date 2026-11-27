@@ -21,7 +21,7 @@ export default function LoginPage() {
       <SiteNav />
       <main className="section container login-page">
         <div className="login-card">
-          <h1>{user ? 'You are logged in' : 'Log in to SpectralTurf'}</h1>
+          <h1>{user ? 'You are logged in' : 'Log in to SpectralTurf AI'}</h1>
           {user === undefined && <p className="muted">Checking…</p>}
           {user === null && (
             <>

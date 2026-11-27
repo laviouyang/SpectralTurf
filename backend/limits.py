@@ -78,7 +78,7 @@ KIND_OF_PATH = {
 }
 
 WHAT = {"analysis": "new satellite analyses", "ai_check": "AI checks (weather check, What if?, My Fields)",
-        "chat": "Ask SpectralTurf questions", "signup": "new accounts", "photo": "photo checks"}
+        "chat": "Ask SpectralTurf AI questions", "signup": "new accounts", "photo": "photo checks"}
 
 LOGIN_WINDOW_S = 15 * 60
 MAX_FAILS_PER_USERNAME = 5
@@ -142,7 +142,7 @@ def check(kind, who, logged_in, today=None):
         try:
             if _count(db, day, kind, "total") >= total:
                 raise LimitReached(
-                    f"SpectralTurf has reached today's limit of {total} {WHAT[kind]} for everyone "
+                    f"SpectralTurf AI has reached today's limit of {total} {WHAT[kind]} for everyone "
                     "(this protects the free data quotas). Please try again tomorrow.")
             if own_limit is not None and _count(db, day, kind, who) >= own_limit:
                 if kind == "signup":

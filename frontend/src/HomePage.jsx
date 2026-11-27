@@ -69,7 +69,7 @@ const AUDIENCE = [
 
 const STEPS = [
   { icon: 'draw', title: 'Draw your field', text: 'Search a park or school in Colorado and outline the turf on the map. Cut out dirt infields and tracks.' },
-  { icon: 'satellite', title: 'Satellite + AI analysis', text: 'SpectralTurf downloads the least-cloudy Sentinel-2 image, removes clouds and shadows, and compares greenness and leaf moisture with what the AI expected from recent weather.' },
+  { icon: 'satellite', title: 'Satellite + AI analysis', text: 'SpectralTurf AI downloads the least-cloudy Sentinel-2 image, removes clouds and shadows, and compares greenness and leaf moisture with what the AI expected from recent weather.' },
   { icon: 'target', title: 'Inspect the right spots first', text: 'The map highlights the areas that may warrant a closer look, so your grounds crew walks to those spots first and sees for themselves.' },
   { icon: 'camera', title: 'Check a photo on the spot', text: 'Take a photo of the patch. The photo AI says which of 6 categories it looks most like: a preliminary result for a turf expert to confirm.' },
 ];
@@ -79,7 +79,7 @@ const FEATURES = [
   { icon: 'chart', title: 'AI Expected-vs-Observed Check', text: 'Compares the newest clear image with what the model expected from the weather.' },
   { icon: 'list', title: 'My Fields priority ranking', text: 'Ranks your saved fields so the one that most needs a visit comes first.' },
   { icon: 'sliders', title: 'What-if explorer', text: 'Shows how greenness might change after a dry or hot spell, within what the AI has seen.' },
-  { icon: 'chat', title: 'Ask SpectralTurf assistant', text: 'Plain-language answers built only from your field’s real data and photo check, with dates.' },
+  { icon: 'chat', title: 'Ask SpectralTurf AI assistant', text: 'Plain-language answers built only from your field’s real data and photo check, with dates.' },
   { icon: 'shield', title: 'Honest data quality', text: 'Clouds, coarse pixels and thin evidence are shown, never hidden or filled in.' },
 ];
 
@@ -102,7 +102,7 @@ export default function HomePage() {
               <p className="eyebrow">For sports-field managers and grounds crews · Satellite + photo AI</p>
               <h1>Find the fields that need attention — before the damage spreads.</h1>
               <p className="lead">
-                SpectralTurf reads free Sentinel-2 satellite images and recent weather to show which
+                SpectralTurf AI reads free Sentinel-2 satellite images and recent weather to show which
                 parts of a park or sports field may warrant a closer look, so sports-field managers and
                 park and school grounds crews can walk to the right spots first, then check a photo of
                 any problem patch with the photo AI.
@@ -143,7 +143,7 @@ export default function HomePage() {
             <h2 id="regions-title" className="section-title">US grass regions</h2>
             <p className="lead-sm">
               Different parts of the country grow different turfgrasses. Click a region to see its
-              common grasses and whether SpectralTurf is validated there yet.
+              common grasses and whether SpectralTurf AI is validated there yet.
             </p>
             <RegionMap />
           </div>
@@ -273,7 +273,7 @@ export default function HomePage() {
           <div className="container">
             <div className="cta-banner">
               <div>
-                <h2>Try SpectralTurf on your field</h2>
+                <h2>Try SpectralTurf AI on your field</h2>
                 <p>Outline a park or sports field in Colorado and get a real satellite check, usually within a minute. Then check a photo of any problem spot.</p>
               </div>
               <Link to="/login" className="btn btn-gold btn-lg">

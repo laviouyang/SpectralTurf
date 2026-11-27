@@ -103,7 +103,7 @@ export default function PhotoCheck() {
   return (
     <div className="photo-check">
       <p className="hint">
-        Upload or take a photo of the grass. SpectralTurf&apos;s photo AI says which of 6 categories it
+        Upload or take a photo of the grass. SpectralTurf AI&apos;s photo AI says which of 6 categories it
         looks most like. The photo is not stored, and its hidden GPS data is removed.
       </p>
       <input ref={upload} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={choose} />

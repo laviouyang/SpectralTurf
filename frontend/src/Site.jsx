@@ -14,10 +14,10 @@ import LoginPage from './LoginPage.jsx';
 import { SiteFooter, SiteNav } from './SiteChrome.jsx';
 
 const TITLES = {
-  '/': 'SpectralTurf: satellite + AI turf inspection priority',
-  '/app': 'SpectralTurf app',
-  '/about': 'About SpectralTurf',
-  '/login': 'Log in · SpectralTurf',
+  '/': 'SpectralTurf AI: satellite + AI turf inspection priority',
+  '/app': 'SpectralTurf AI app',
+  '/about': 'About SpectralTurf AI',
+  '/login': 'Log in · SpectralTurf AI',
 };
 
 function NotFound() {
@@ -38,7 +38,7 @@ export default function Site() {
   const { path } = useLocation();
 
   useEffect(() => {
-    document.title = TITLES[path] ?? 'Page not found · SpectralTurf';
+    document.title = TITLES[path] ?? 'Page not found · SpectralTurf AI';
   }, [path]);
 
   if (path === '/') return <HomePage />;
