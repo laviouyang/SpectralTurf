@@ -79,7 +79,7 @@ REGIONS = [
     {"id": 2, "name": "Intermountain West", "short": "Intermountain", "climate": "cool and dry",
      "grasses": ["Kentucky bluegrass", "tall fescue", "fine fescues", "perennial ryegrass", "wheatgrass"],
      "source": "USU", "label": [-115.5, 42.3]},
-    {"id": 3, "name": "Northern & Central Plains", "short": "Plains (Denver)", "climate": "cool, semi-dry",
+    {"id": 3, "name": "Northern & Central Plains", "short": "Plains", "climate": "cool, semi-dry",
      "grasses": ["Kentucky bluegrass", "tall fescue", "buffalograss", "blue grama", "fine fescues",
                  "perennial ryegrass"],
      "source": "CSU", "label": [-101.5, 44.3]},

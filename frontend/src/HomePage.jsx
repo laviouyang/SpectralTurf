@@ -4,11 +4,11 @@
  * Every number on this page is real and has a source:
  *   - the hero picture is a real Sentinel-2 analysis made by this app (see previewFacts.json,
  *     made with backend run_analysis for Village Greens Park, image 2026-08-05);
- *   - the three water statistics come from the sources cited under them;
  *   - the model results come from ml/results_v3.md (evaluate_v3.py, 2026-11-07);
  *   - the photo AI results come from backend/photo_model/photo_classifier_v1.json
  *     (ml_photo/export_onnx.py, 379 test photos, 2026-11-26).
  * 2026-11-26 (student request): photo AI added, and the target audience named instead of "people".
+ * 2026-11-27 (student request): app buttons say "Get started"; the water-statistics section removed.
  * No testimonials, user counts, or partner logos, because we don't have any.
  */
 import { useState } from 'react';
@@ -60,30 +60,6 @@ function LivePreview() {
   );
 }
 
-const STATS = [
-  {
-    value: 'Up to 740,000',
-    unit: 'acre-feet per year',
-    text: 'of extra water Colorado communities may need by 2050 (municipal and industrial gap, driest scenario).',
-    source: '2023 Colorado Water Plan, Colorado Water Conservation Board',
-    url: 'https://cwcb.colorado.gov/colorado-water-plan',
-  },
-  {
-    value: 'Up to 50%',
-    unit: 'of outdoor watering',
-    text: 'can be wasted through inefficient irrigation, such as watering too much or at the wrong time.',
-    source: 'U.S. EPA WaterSense',
-    url: 'https://www.epa.gov/watersense/outdoors',
-  },
-  {
-    value: '~5,500',
-    unit: 'reports',
-    text: 'of possible watering violations sent to Denver Water by mid-August 2026, during summer restrictions.',
-    source: 'Axios Denver, Aug. 14, 2026',
-    url: 'https://www.axios.com/local/denver/2026/08/14/colorado-drought-sparks-lawn-wars',
-  },
-];
-
 // Who SpectralTurf is built for (2026-11-26). "Built for" only: no claim that they use it yet.
 const AUDIENCE = [
   { icon: 'target', title: 'Sports-field managers', text: 'Schools, recreation centers and sports complexes that keep natural-grass fields playable.' },
@@ -133,7 +109,7 @@ export default function HomePage() {
               </p>
               <div className="hero-actions">
                 <Link to="/login" className="btn btn-primary btn-lg">
-                  Try it on a field <Icon name="arrowRight" size={18} />
+                  Get started <Icon name="arrowRight" size={18} />
                 </Link>
                 <Link to="/#how" className="btn btn-secondary btn-lg">See how it works</Link>
               </div>
@@ -170,25 +146,6 @@ export default function HomePage() {
               common grasses and whether SpectralTurf is validated there yet.
             </p>
             <RegionMap />
-          </div>
-        </section>
-
-        {/* ---- The problem ---- */}
-        <section className="section section-dark" aria-labelledby="problem-title">
-          <div className="container">
-            <h2 id="problem-title" className="section-title">Water for turf is getting scarcer in Colorado</h2>
-            <div className="stats-grid">
-              {STATS.map((s) => (
-                <div className="stat" key={s.source}>
-                  <p className="stat-value">{s.value}</p>
-                  <p className="stat-unit">{s.unit}</p>
-                  <p className="stat-text">{s.text}</p>
-                  <p className="stat-source">
-                    Source: <a href={s.url} target="_blank" rel="noreferrer">{s.source}</a>
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
@@ -320,7 +277,7 @@ export default function HomePage() {
                 <p>Outline a park or sports field in Colorado and get a real satellite check, usually within a minute. Then check a photo of any problem spot.</p>
               </div>
               <Link to="/login" className="btn btn-gold btn-lg">
-                Open the app <Icon name="arrowRight" size={18} />
+                Get started <Icon name="arrowRight" size={18} />
               </Link>
             </div>
           </div>

@@ -42,7 +42,7 @@ export default function LoginPage() {
                 Logged in as <strong>{user.username}</strong>.
               </p>
               <div className="button-row">
-                <Link to="/app" className="btn btn-primary">Open the app</Link>
+                <Link to="/app" className="btn btn-primary">Get started</Link>
                 <button
                   type="button"
                   className="secondary"

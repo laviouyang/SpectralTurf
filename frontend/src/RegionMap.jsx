@@ -85,7 +85,7 @@ export default function RegionMap() {
               const anchor = r.id === 1 ? 'end' : 'middle';
               const tx = r.id === 1 ? x + 12 : x;
               return (
-                <g key={r.id} className="region-label" aria-hidden="true">
+                <g key={r.id} className={`region-label ${r.id === (hovered ?? selected) ? 'active' : ''}`} aria-hidden="true">
                   <circle cx={x} cy={y} r="17" fill="#ffffff" stroke={STYLE[r.id].fill} strokeWidth="3.5" />
                   <text x={x} y={y + 6.5} textAnchor="middle" className="region-number">{r.id}</text>
                   <text x={tx} y={y + 37} textAnchor={anchor} className="region-name" fill={STYLE[r.id].ink}>

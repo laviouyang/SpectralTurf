@@ -965,3 +965,22 @@ button.nav-toggle:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 }
+
+/* 2026-11-27 (student): make the selected region on the grass-region map more obvious:
+   the selected region is darker with a thick outline; the others fade a little. */
+.region-shape.active path:first-child {
+  filter: brightness(0.72) saturate(1.15);
+  stroke: var(--dark);
+  stroke-width: 3.5;
+}
+.region-shape:not(.active) path:first-child {
+  opacity: 0.6;
+}
+/* the selected region is dark, so its name and status turn white (readable on every color) */
+.region-label.active .region-name,
+.region-label.active .region-status {
+  fill: #ffffff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 2px;
+}
