@@ -463,7 +463,8 @@ export default function App() {
                 <EmptyState icon="draw" title="Draw a field to get started">
                   <ol className="steps">
                     <li>Search for a park, school, or address in the search box above.</li>
-                    <li>Click the <strong>polygon</strong> (pentagon) or <strong>rectangle</strong> tool on the map, then click around the grass. Click the first point again to finish.</li>
+                    <li>Click the <strong>polygon +</strong> or <strong>rectangle +</strong> tool on the map, then click around the grass. Click the first point again to finish.</li>
+                    <li>Several grass areas with walkways between them? <strong>Draw another shape</strong> for each one. All your shapes together are one field (overlapping shapes are joined).</li>
                     <li>Include <strong>only turf</strong>. Leave out pavement and buildings around the field.</li>
                     <li>Dirt infields, tracks, or paths <strong>inside</strong> the field? Cut them out afterwards with the <strong>✂ buttons</strong> on the map.</li>
                   </ol>
@@ -528,6 +529,12 @@ export default function App() {
                       {fieldOutsideColorado && (
                         <p className="notice notice-warn">⚠ {OUTSIDE_COLORADO_MESSAGE}</p>
                       )}
+                      <p className="muted">
+                        {check.facts.parts > 1
+                          ? `This field has ${check.facts.parts} separate shapes; they are analyzed and saved together as one field. `
+                          : ''}
+                        To add another grass area to this field, draw another shape on the map.
+                      </p>
                       {editing ? (
                         <p className="notice notice-info">
                           Editing: drag the white squares on the map to move corners. The numbers above
@@ -565,7 +572,7 @@ export default function App() {
                           <span className="muted">
                             Inside your outline, cover anything that is not supposed to be grass (dirt
                             infields, tracks, paths). Those pixels are not analyzed at all. Use these
-                            buttons or the ✂ buttons on the map, once for each area.
+                            buttons or the − buttons on the map, once for each area.
                           </span>
                         </p>
                         <div className="button-row">
@@ -573,17 +580,17 @@ export default function App() {
                             type="button"
                             className="secondary"
                             disabled={editing}
-                            onClick={() => setExcludeRequest({ kind: 'rectangle' })}
+                            onClick={() => setExcludeRequest({ kind: 'polygon' })}
                           >
-                            Exclude a rectangle
+                            Exclude a polygon
                           </button>
                           <button
                             type="button"
                             className="secondary"
                             disabled={editing}
-                            onClick={() => setExcludeRequest({ kind: 'polygon' })}
+                            onClick={() => setExcludeRequest({ kind: 'rectangle' })}
                           >
-                            Exclude a polygon
+                            Exclude a rectangle
                           </button>
                         </div>
                         {exclusions.length > 0 && (

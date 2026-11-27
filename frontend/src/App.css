@@ -528,3 +528,27 @@ pre {
   border-radius: 4px;
   border: 1px solid #d8ded9;
 }
+
+/* 2026-11-27 (student): the 4 map buttons, in this order: draw polygon (+), draw rectangle (+),
+   exclude polygon (−), exclude rectangle (−). Each icon = the shape with a + or − badge at the
+   bottom right of the white button. */
+.leaflet-draw-toolbar a.leaflet-draw-draw-polygon,
+.leaflet-draw-toolbar a.leaflet-draw-draw-rectangle,
+.exclude-control a.exclude-polygon,
+.exclude-control a.exclude-rectangle {
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 24px 24px !important;
+}
+.leaflet-draw-toolbar a.leaflet-draw-draw-polygon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.5 2.5 16 7l-2.2 7.5H5.2L3 7Z' fill='none' stroke='%23333' stroke-width='1.8' stroke-linejoin='round'/%3E%3Ccircle cx='18' cy='18' r='5.2' fill='%231f7a4d'/%3E%3Cpath d='M18 15.3v5.4M15.3 18h5.4' stroke='%23fff' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+}
+.leaflet-draw-toolbar a.leaflet-draw-draw-rectangle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='3.5' width='13' height='10.5' fill='none' stroke='%23333' stroke-width='1.8'/%3E%3Ccircle cx='18' cy='18' r='5.2' fill='%231f7a4d'/%3E%3Cpath d='M18 15.3v5.4M15.3 18h5.4' stroke='%23fff' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+}
+.exclude-control a.exclude-polygon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.5 2.5 16 7l-2.2 7.5H5.2L3 7Z' fill='%23999' fill-opacity='0.35' stroke='%23333' stroke-width='1.8' stroke-linejoin='round' stroke-dasharray='3 2'/%3E%3Ccircle cx='18' cy='18' r='5.2' fill='%23b42318'/%3E%3Cpath d='M15.3 18h5.4' stroke='%23fff' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.exclude-control a.exclude-rectangle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='3.5' width='13' height='10.5' fill='%23999' fill-opacity='0.35' stroke='%23333' stroke-width='1.8' stroke-dasharray='3 2'/%3E%3Ccircle cx='18' cy='18' r='5.2' fill='%23b42318'/%3E%3Cpath d='M15.3 18h5.4' stroke='%23fff' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}

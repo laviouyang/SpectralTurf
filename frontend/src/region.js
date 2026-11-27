@@ -15,8 +15,9 @@ export function isInColorado(lat, lon) {
 }
 
 // The middle of a GeoJSON polygon's outline (good enough to tell which state a field is in).
+// Since 2026-11-27 also a MultiPolygon (a field in several pieces): the box around all pieces.
 export function polygonCenter(geojson) {
-  const ring = geojson.coordinates[0];
+  const ring = geojson.type === 'MultiPolygon' ? geojson.coordinates.flatMap((part) => part[0]) : geojson.coordinates[0];
   const lons = ring.map((p) => p[0]);
   const lats = ring.map((p) => p[1]);
   return { lat: (Math.min(...lats) + Math.max(...lats)) / 2, lon: (Math.min(...lons) + Math.max(...lons)) / 2 };

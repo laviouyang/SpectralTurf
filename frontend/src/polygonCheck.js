@@ -7,6 +7,8 @@
  *   - MAX_PIXELS_PER_SIDE = 500 in backend/sentinel.py -> 500 x 10 m = 5 km
  */
 
+import { MAX_FIELD_PARTS } from './fieldShapes.js';
+
 export const MIN_AREA_M2 = 2000;
 export const MAX_SIDE_M = 5000;
 const PIXEL_AREA_M2 = 10 * 10; // one Sentinel-2 10 m pixel
@@ -32,6 +34,10 @@ export function checkPolygon(polygon) {
   if (polygon.selfIntersects) {
     problems.push('The outline crosses itself. Redraw it so the edges do not cross.');
   }
+  // 2026-11-27: a field can be several shapes (pieces); the size limits apply to all of them together.
+  if ((polygon.parts || 1) > MAX_FIELD_PARTS) {
+    problems.push(`A field can have at most ${MAX_FIELD_PARTS} separate shapes. Click Clear area and draw fewer.`);
+  }
   if (polygon.areaM2 < MIN_AREA_M2) {
     problems.push(
       `Area is too small (${Math.round(polygon.areaM2).toLocaleString()} m²). ` +
@@ -55,6 +61,7 @@ export function checkPolygon(polygon) {
       pixels20m: Math.floor(polygon.areaM2 / NDMI_PIXEL_AREA_M2),
       widthM,
       heightM,
+      parts: polygon.parts || 1,
     },
   };
 }

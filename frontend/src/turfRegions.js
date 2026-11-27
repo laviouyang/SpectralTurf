@@ -35,10 +35,11 @@ export function detectRegion(lon, lat) {
   return found ? found.id : null;
 }
 
-// The region of a drawn field (GeoJSON Polygon), from the middle of its bounding box.
+// The region of a drawn field (GeoJSON Polygon, or since 2026-11-27 a MultiPolygon = several
+// pieces), from the middle of the box around all of it.
 export function regionOfPolygon(geojson) {
   if (!geojson) return null;
-  const ring = geojson.coordinates[0];
+  const ring = geojson.type === 'MultiPolygon' ? geojson.coordinates.flatMap((part) => part[0]) : geojson.coordinates[0];
   const lons = ring.map((p) => p[0]);
   const lats = ring.map((p) => p[1]);
   return detectRegion((Math.min(...lons) + Math.max(...lons)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2);

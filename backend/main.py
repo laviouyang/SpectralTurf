@@ -39,6 +39,7 @@ import accounts
 import assistant
 import photo_classifier  # added 2026-11-26 (Stage 11 "Check a photo"; model loads on first photo)
 import indices
+import field_shape  # 2026-11-27: a field can be several separate pieces
 import predict
 import regions
 import render
@@ -157,6 +158,18 @@ def clean_polygon(geometry: dict):
     return {"type": "Polygon", "coordinates": [points]}
 
 
+def clean_field(geometry: dict):
+    """
+    Added 2026-11-27 (student request): a FIELD may be one outline (Polygon, checked by
+    clean_polygon exactly as before) or several separate pieces (MultiPolygon), e.g. park fields
+    with walkways between them. Rules are in field_shape.py. Excluded areas stay single Polygons.
+    """
+    def bad(reason):
+        raise HTTPException(status_code=400, detail=f"Invalid area: {reason}")
+
+    return field_shape.clean_field(geometry, clean_polygon, bad)
+
+
 # ---------------------------------------------------------------------------
 # Accounts: who is making this request?
 # ---------------------------------------------------------------------------
@@ -193,7 +206,7 @@ def required_user(user=Depends(current_user)):
 # ---------------------------------------------------------------------------
 
 class AnalyzeRequest(BaseModel):
-    geometry: dict = Field(..., description="GeoJSON Polygon; corners are [longitude, latitude]")
+    geometry: dict = Field(..., description="GeoJSON Polygon, or MultiPolygon = a field in several pieces; corners are [longitude, latitude]")
     start: date = Field(date(2026, 6, 1), description="Start date (YYYY-MM-DD)")
     end: date = Field(date(2026, 8, 31), description="End date (YYYY-MM-DD)")
     max_cloud: int = Field(30, ge=0, le=100, description="Max tile cloud cover, %")
@@ -212,7 +225,7 @@ class AnalyzeRequest(BaseModel):
 
 @app.post("/api/analyze")
 def analyze(request: AnalyzeRequest, user=Depends(current_user), db=Depends(get_db)):
-    geometry = clean_polygon(request.geometry)
+    geometry = clean_field(request.geometry)
     if len(request.exclude) > MAX_EXCLUDED_AREAS:
         raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
     exclusions = [clean_polygon(shape) for shape in request.exclude]
@@ -284,13 +297,13 @@ def delete_history_item(analysis_id: int, user=Depends(required_user), db=Depend
 # outline, excluded areas and name (no satellite numbers - nothing was measured).
 class SaveFieldRequest(BaseModel):
     name: str = Field(..., max_length=200, description="The field's name in My Fields")
-    geometry: dict = Field(..., description="GeoJSON Polygon, same rules as /api/analyze")
+    geometry: dict = Field(..., description="GeoJSON Polygon or MultiPolygon, same rules as /api/analyze")
     exclude: list[dict] = Field(default_factory=list, description="Excluded areas inside the outline")
 
 
 @app.post("/api/fields")
 def save_field(body: SaveFieldRequest, user=Depends(required_user), db=Depends(get_db)):
-    geometry = clean_polygon(body.geometry)
+    geometry = clean_field(body.geometry)
     if len(body.exclude) > MAX_EXCLUDED_AREAS:
         raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
     exclusions = [clean_polygon(shape) for shape in body.exclude]
@@ -379,7 +392,7 @@ def what_if_limits(as_of: date | None = None):
 
 
 class WhatIfRequest(BaseModel):
-    geometry: dict | None = Field(None, description="The field on screen (GeoJSON Polygon), optional")
+    geometry: dict | None = Field(None, description="The field on screen (GeoJSON Polygon or MultiPolygon), optional")
     exclude: list[dict] = Field(default_factory=list)
     as_of: date = Field(default_factory=date.today)
     dry_days: int = Field(..., ge=0, le=predict.WHAT_IF_DAYS, description="Last X of the 14 days have no rain")
@@ -402,7 +415,7 @@ def what_if(body: WhatIfRequest, user=Depends(required_user), db=Depends(get_db)
         answer = {"limits": limits, "label": predict.WHAT_IF_LABEL, "pattern_note": predict.PATTERN_NOTE,
                   "accuracy_note": predict.ACCURACY_NOTE, "credits": predict.CREDITS}
         if body.geometry is not None:
-            geometry = clean_polygon(body.geometry)
+            geometry = clean_field(body.geometry)
             if len(body.exclude) > MAX_EXCLUDED_AREAS:
                 raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
             exclusions = [clean_polygon(shape) for shape in body.exclude]
@@ -423,7 +436,7 @@ def what_if(body: WhatIfRequest, user=Depends(required_user), db=Depends(get_db)
 
 # Stage 10 Steps 6-7 (2026-11-07): AI Weather Check for the field on the map.
 class WeatherCheckRequest(BaseModel):
-    geometry: dict = Field(..., description="The field outline (GeoJSON Polygon), same as /api/analyze")
+    geometry: dict = Field(..., description="The field outline (GeoJSON Polygon or MultiPolygon), same as /api/analyze")
     exclude: list[dict] = Field(default_factory=list, description="Excluded areas (become holes)")
     as_of: date = Field(default_factory=date.today, description="Check the field as of this day")
 
@@ -434,7 +447,7 @@ def weather_check(body: WeatherCheckRequest, user=Depends(required_user)):
     been no clear image for 7+ days) the AI's cloudy-day estimate. Uses no account data.
     Login required since 2026-11-25 (Version 2), like the website's AI Check tab."""
     check_as_of(body.as_of)
-    geometry = clean_polygon(body.geometry)
+    geometry = clean_field(body.geometry)
     if len(body.exclude) > MAX_EXCLUDED_AREAS:
         raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
     exclusions = [clean_polygon(shape) for shape in body.exclude]
@@ -451,7 +464,7 @@ def weather_check(body: WeatherCheckRequest, user=Depends(required_user)):
 # Stage 10 Step 10 (2026-11-15): "Ask SpectralTurf" AI assistant (backend/assistant.py).
 class AskRequest(BaseModel):
     question: str = Field(..., max_length=5000, description="The user's question")
-    geometry: dict | None = Field(None, description="The field on screen (GeoJSON Polygon), optional")
+    geometry: dict | None = Field(None, description="The field on screen (GeoJSON Polygon or MultiPolygon), optional")
     exclude: list[dict] = Field(default_factory=list)
     start: date | None = Field(None, description="Date range of the analysis on screen")
     end: date | None = None
@@ -493,7 +506,7 @@ def ask(body: AskRequest, request: Request, user=Depends(required_user), db=Depe
             raise HTTPException(status_code=e.status, detail=str(e))
     screen, analyze_screen = None, None
     if body.geometry is not None:
-        geometry = clean_polygon(body.geometry)
+        geometry = clean_field(body.geometry)
         if len(body.exclude) > MAX_EXCLUDED_AREAS:
             raise HTTPException(status_code=400, detail=f"At most {MAX_EXCLUDED_AREAS} excluded areas.")
         exclusions = [clean_polygon(shape) for shape in body.exclude]
