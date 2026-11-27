@@ -2,7 +2,8 @@
 photo_classifier.py - Stage 11 on the website: "Check a photo" (added 2026-11-26).
 
 Answers which of our 6 photo categories a turf photo LOOKS MOST LIKE. It is NOT a diagnosis
-(rule approved by the student on 2026-11-26: always say "not a diagnosis - confirm with an expert").
+(rule approved by the student on 2026-11-26; wording changed the same day with the mentor: always
+say "Preliminary AI result - it can be wrong. Confirm with a turf expert before treating.").
 
 How it works (no PyTorch on the server):
   1. The photo is checked (JPEG/PNG/WebP, at most 10 MB) and re-saved as a new PNG in memory.
@@ -48,10 +49,10 @@ CLASS_NAMES = {
     "wear": "Wear (foot traffic)",
     "dormant": "Dormant grass",
 }
-NOT_A_DIAGNOSIS = "Not a diagnosis — confirm with an expert."
+NOT_A_DIAGNOSIS = "Preliminary AI result — it can be wrong. Confirm with a turf expert before treating."  # name kept; wording changed 2026-11-26
 DORMANCY_NOTE = "Brown grass may be normal winter dormancy."
 DORMANCY_MONTHS = {11, 12, 1, 2, 3}  # November to March (student's choice)
-LABEL = "Photo check (AI): looks most like… — not a diagnosis"
+LABEL = "Photo check (AI): looks most like… — preliminary AI result"
 
 
 class PhotoError(Exception):

@@ -152,6 +152,13 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   Chrome (ports 8001/5175, throwaway DB, deleted): upload -> Uncertain + bars + notes + accuracy.
   NOT verified: a real Gemini answer with a photo (Gemini returned 503 "busy" twice), camera button
   on a phone, Render memory/onnxruntime install.
+- 2026-11-26 later (student + mentor, on `version-2`): tab "Ask AI" -> "AI Diagnosis" (same id 'ask');
+  inside it "Check a photo" panel FIRST, then "Ask SpectralTurf — AI agent" panel (was a card), then a
+  disclaimer at the bottom (.ai-disclaimer, PhotoCheck.AI_DISCLAIMER). Photo panel removed from AI
+  Check; AI Check titles lost "1."/"2.". photo_classifier.NOT_A_DIAGNOSIS (name kept) = new wording;
+  assistant photo check now needs "preliminary" + "expert" (prompt rule 11, required_wording, retry
+  text). Other "not a diagnosis" text (weather check, site footer, README) NOT changed.
+  test_photo_classify 32/32 (24b: old wording alone blocked). Checked in Chrome (8001/5175, throwaway DB).
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
@@ -191,6 +198,9 @@ fetches real Sentinel-2 L2A data → computes NDVI and NDMI → shows results, o
 date, data quality, and limitations. It prioritizes areas that "may warrant inspection".
 It must NOT claim to diagnose disease, prove drought, prescribe watering, or control irrigation.
 PHOTO RULE (approved by the student 2026-11-26, exact wording): the app may show which photo category a picture "looks most like," as long as it says it is not a diagnosis and to confirm with an expert.
+PHOTO RULE WORDING CHANGED (2026-11-26, student + mentor): the tab is named "AI Diagnosis"; the photo
+disclaimer is now "Preliminary AI result — it can be wrong. Confirm with a turf expert before treating."
+(Claude pointed out the name clashes with "not a diagnosis"; the mentor chose to keep the name.)
 
 ## Non-negotiable rules
 - Never fabricate imagery, dates, index values, or weather. On failure, show an honest

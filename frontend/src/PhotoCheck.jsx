@@ -3,7 +3,8 @@
  *
  * Upload or take ONE photo of turf. Our own photo classifier (backend/photo_classifier.py) says
  * which of 6 categories it LOOKS MOST LIKE, with a bar for every category. Rule approved by the
- * student: always "Not a diagnosis — confirm with an expert." Below the cutoff it says
+ * student (wording changed 2026-11-26 with the mentor): always "Preliminary AI result — it can be
+ * wrong. Confirm with a turf expert before treating." Below the cutoff it says
  * "Uncertain — inspect in person". The photo is never stored; the server removes GPS/EXIF data.
  *
  * Upload: the original file is sent when it fits the server limits (JPEG up to 10 MB; PNG/WebP up
@@ -18,6 +19,8 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_PNG_WEBP_PIXELS = 4_000_000;
 const BROWSER_SIDE = 1600;
 const TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+// Shown at the bottom of the AI Diagnosis tab. Same text as photo_classifier.NOT_A_DIAGNOSIS.
+export const AI_DISCLAIMER = 'Preliminary AI result — it can be wrong. Confirm with a turf expert before treating.';
 
 function loadImage(file) {
   return new Promise((resolve, reject) => {

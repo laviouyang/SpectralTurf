@@ -6,7 +6,7 @@
  * Stage 8: "Exclude" areas inside the outline that are not turf (e.g. dirt infields).
  * Accounts: optional log in; each analysis is saved to the user's history.
  * UI redesign (2026-11-23): full-screen map, slim top bar (logo, search, account menu) and a
- * floating panel with tabs (Analyze / My Fields / AI Check / Ask AI); on phones the panel is a
+ * floating panel with tabs (Analyze / My Fields / AI Check / AI Diagnosis); on phones the panel is a
  * bottom sheet. Only the layout changed: the same components, state and API calls as before.
  * All tabs stay mounted (just hidden), so nothing reloads or re-runs when you switch tabs.
  * Version 2 (2026-11-25, student requests): dates default to "the 2 weeks up to yesterday" and
@@ -38,7 +38,7 @@ import { AccountMenu, EmptyState, ResultsSkeleton, Spinner } from './AppChrome.j
 import { Icon, Logo } from './Icons.jsx';
 import { Link, navigate } from './router.jsx';
 import Modal from './Modal.jsx';
-import PhotoCheck from './PhotoCheck.jsx'; // Stage 11 (2026-11-26): "Check a photo"
+import PhotoCheck, { AI_DISCLAIMER } from './PhotoCheck.jsx'; // Stage 11 (2026-11-26): "Check a photo"
 import { OUTSIDE_COLORADO_MESSAGE, isInColorado, polygonCenter } from './region.js';
 import { DATA as REGION_DATA, REGIONS, VALIDATED_REGION, regionById, regionOfPolygon, regionStatus } from './turfRegions.js';
 import { analyzeArea, currentUser, deleteHistoryItem, getHistory, logOut, saveField } from './api.js';
@@ -282,7 +282,8 @@ export default function App() {
     { id: 'analyze', label: 'Analyze', icon: 'draw' },
     { id: 'myfields', label: 'My Fields', icon: 'list', needsAccount: true },
     { id: 'aicheck', label: 'AI Check', icon: 'chart', needsAccount: true },
-    { id: 'ask', label: 'Ask AI', icon: 'chat', needsAccount: true },
+    // 2026-11-26 (student + mentor): tab renamed "Ask AI" -> "AI Diagnosis"; photo check first, then Ask.
+    { id: 'ask', label: 'AI Diagnosis', icon: 'chat', needsAccount: true },
   ];
 
   // Version 2: My Fields, AI Check and Ask AI need an account. This is what they show instead.
@@ -298,7 +299,7 @@ export default function App() {
         )}
       >
         <p>
-          My Fields, the AI checks and Ask AI need a free account (username and password only).
+          My Fields, the AI checks and AI Diagnosis need a free account (username and password only).
           Analyzing a field works without one.
         </p>
       </EmptyState>
@@ -745,7 +746,7 @@ export default function App() {
             <div role="tabpanel" id="tabpanel-aicheck" aria-labelledby="tab-aicheck" hidden={tab !== 'aicheck'}>
               {!user ? loginNeeded('chart', 'Log in to use the AI checks') : (
                 <>
-                  <Panel id="v2-weathercheck" title="1. AI Weather Check" defaultOpen>
+                  <Panel id="v2-weathercheck" title="AI Weather Check" defaultOpen>
                     <FieldPicker
                       label="Field to check"
                       value={checkField}
@@ -779,7 +780,7 @@ export default function App() {
                       />
                     )}
                   </Panel>
-                  <Panel id="v2-whatif" title="2. What if? — AI weather scenario" defaultOpen>
+                  <Panel id="v2-whatif" title="What if? — AI weather scenario" defaultOpen>
                     <FieldPicker
                       label="Field for the scenario"
                       value={whatIfField}
@@ -797,19 +798,19 @@ export default function App() {
                       fieldLabel={pickedName(whatIfField)}
                     />
                   </Panel>
-                  {/* Stage 11 (2026-11-26): photo classifier - "looks most like", not a diagnosis */}
-                  <Panel id="v2-photocheck" title="3. Check a photo — AI photo check" defaultOpen>
-                    <PhotoCheck />
-                  </Panel>
                 </>
               )}
             </div>
 
-            {/* ===== Ask AI ===== */}
+            {/* ===== AI Diagnosis (was "Ask AI"): photo check first, then Ask SpectralTurf ===== */}
             <div role="tabpanel" id="tabpanel-ask" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
-              {!user ? loginNeeded('chat', 'Log in to ask SpectralTurf') : (
-                <div className="card">
-                  <h2 className="card-title">Ask SpectralTurf</h2>
+              {!user ? loginNeeded('chat', 'Log in to use AI Diagnosis') : (
+                <>
+                {/* Stage 11 (2026-11-26): photo classifier - "looks most like" (preliminary) */}
+                <Panel id="v2-photocheck" title="Check a photo — AI photo check" defaultOpen>
+                  <PhotoCheck />
+                </Panel>
+                <Panel id="v2-ask" title="Ask SpectralTurf — AI agent" defaultOpen>
                   <FieldPicker
                     label="First, pick the field your questions are about"
                     value={askReady ? askField : ''}
@@ -849,8 +850,10 @@ export default function App() {
                       user={user}
                     />
                   )}
-                </div>
+                </Panel>
+                </>
               )}
+              <p className="notice notice-info ai-disclaimer">⚠ {AI_DISCLAIMER}</p>
             </div>
           </div>
         </aside>

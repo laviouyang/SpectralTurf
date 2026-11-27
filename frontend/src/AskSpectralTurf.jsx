@@ -143,7 +143,8 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
                 {m.reply.photo_used && (
                   <p className="muted">
                     The photo was checked by SpectralTurf&apos;s photo AI (&ldquo;looks most like&rdquo;):
-                    not a diagnosis — confirm with an expert. The photo is not a measurement; numbers
+                    preliminary AI result — it can be wrong; confirm with a turf expert before treating.
+                    The photo is not a measurement; numbers
                     come from satellite data.
                   </p>
                 )}

@@ -25,3 +25,8 @@
 .photo-accuracy { margin-top: var(--s1); font-size: 0.9rem; }
 .photo-accuracy summary { cursor: pointer; color: var(--forest); font-weight: 600; }
 .photo-accuracy .photo-limit { color: var(--ink-muted); }
+
+/* 2026-11-26: disclaimer at the bottom of the AI Diagnosis tab */
+.ai-disclaimer {
+  margin-top: 12px;
+}

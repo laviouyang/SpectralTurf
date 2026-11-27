@@ -31,7 +31,7 @@ export default function LoginPage() {
                 <br />
                 <span className="muted">
                   Without an account you can still draw and analyze a field. My Fields, the AI checks
-                  and Ask AI need an account.
+                  and AI Diagnosis need an account.
                 </span>
               </p>
             </>
