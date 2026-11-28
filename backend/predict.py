@@ -192,6 +192,8 @@ def rings_cross(r1, r2):
 def field_geometry(geometry, exclusions):
     """The outline with excluded areas cut out as holes, plus a note if that wasn't possible.
     Holes are only valid if they lie fully inside the outline and don't touch each other."""
+    if geometry.get("type") == "MultiPolygon":  # 2026-11-27: a field in several pieces
+        return field_geometry_multi(geometry, exclusions)
     outline = geometry["coordinates"][0]
     holes = [shape["coordinates"][0] for shape in exclusions]
     ok = all(
@@ -207,7 +209,34 @@ def field_geometry(geometry, exclusions):
     return {"type": "Polygon", "coordinates": [outline] + holes}, None
 
 
+def field_geometry_multi(geometry, exclusions):
+    """Added 2026-11-27: like field_geometry, for a field in several pieces (MultiPolygon).
+    Each excluded area becomes a hole in the ONE piece it lies fully inside."""
+    outlines = [part[0] for part in geometry["coordinates"]]
+    holes = [shape["coordinates"][0] for shape in exclusions]
+    holes_of = [[] for _ in outlines]
+    ok = not any(
+        rings_cross(h1, h2) or point_in_ring(h1[0], h2) or point_in_ring(h2[0], h1)
+        for i, h1 in enumerate(holes) for h2 in holes[i + 1:]
+    )
+    for hole in holes:
+        home = next((i for i, outline in enumerate(outlines)
+                     if all(point_in_ring(p, outline) for p in hole) and not rings_cross(hole, outline)), None)
+        if home is None:
+            ok = False
+            break
+        holes_of[home].append(hole)
+    if holes and not ok:
+        return geometry, ("Excluded areas were NOT used for the AI check because some overlap "
+                          "each other or reach outside the outline.")
+    return {"type": "MultiPolygon",
+            "coordinates": [[outline] + holes_of[i] for i, outline in enumerate(outlines)]}, None
+
+
 def centroid(geometry):
+    if geometry.get("type") == "MultiPolygon":  # 2026-11-27: average corner of all pieces
+        ring = [p for part in geometry["coordinates"] for p in part[0][:-1]]
+        return sum(p[0] for p in ring) / len(ring), sum(p[1] for p in ring) / len(ring)
     ring = geometry["coordinates"][0][:-1]
     return sum(p[0] for p in ring) / len(ring), sum(p[1] for p in ring) / len(ring)
 

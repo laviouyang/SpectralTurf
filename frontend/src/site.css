@@ -937,3 +937,50 @@ button.nav-toggle:hover:not(:disabled) {
   font-size: 0.85rem;
   line-height: 1.45;
 }
+
+/* 2026-11-26: four "How it works" steps (photo check added) + photo AI results heading */
+.steps-grid.steps-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.trust-subtitle {
+  margin: 32px 0 0;
+}
+@media (max-width: 1100px) {
+  .steps-grid.steps-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .steps-grid.steps-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 2026-11-26: 6 AI feature cards -> rows of 3 (no single card left alone) */
+#ai .feature-grid {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+@media (max-width: 760px) {
+  #ai .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 2026-11-27 (student): make the selected region on the grass-region map more obvious:
+   the selected region is darker with a thick outline; the others fade a little. */
+.region-shape.active path:first-child {
+  filter: brightness(0.72) saturate(1.15);
+  stroke: var(--dark);
+  stroke-width: 3.5;
+}
+.region-shape:not(.active) path:first-child {
+  opacity: 0.6;
+}
+/* the selected region is dark, so its name and status turn white (readable on every color) */
+.region-label.active .region-name,
+.region-label.active .region-status {
+  fill: #ffffff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 2px;
+}

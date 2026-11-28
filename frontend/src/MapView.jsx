@@ -9,12 +9,19 @@
  *   editing       - true: show draggable corners; false: hide them and save the shape
  *   excludeRequest- { kind: 'rectangle' | 'polygon' }: start drawing an excluded area
  *   loadRequest   - { geometry, exclusions }: draw a saved outline (from "Show on map")
+ *
+ * 2026-11-27 (student request): a field can be SEVERAL shapes. Drawing another outline shape ADDS
+ * it to the field instead of replacing it ("Clear area" starts over). Overlapping shapes are merged
+ * (fieldShapes.js); separate shapes become one field with several pieces (MultiPolygon).
+ * Map buttons, in this order: draw polygon (+), draw rectangle (+), exclude polygon (−),
+ * exclude rectangle (−); the icons are in App.css.
  *   searchTarget  - when a search result is picked, we zoom to it
  *   overlay       - an analysis picture ({ url, bounds }) to lay over the field, or null
  */
 import { useEffect, useRef } from 'react';
 import L from './leafletSetup';
 import 'leaflet-draw';
+import { mergeShapes, outerRings } from './fieldShapes.js';
 
 // Roughly the middle of Colorado, zoomed out to show the whole state.
 const COLORADO_CENTER = [39.0, -105.55];
@@ -37,8 +44,9 @@ const EXCLUDE_STYLE = {
 };
 
 // Hover labels for the drawing toolbar, so it is clear these draw the OUTLINE.
-L.drawLocal.draw.toolbar.buttons.polygon = 'Draw turf outline as a polygon (replaces the current outline)';
-L.drawLocal.draw.toolbar.buttons.rectangle = 'Draw turf outline as a rectangle (replaces the current outline)';
+// 2026-11-27: drawing another shape ADDS it to the field.
+L.drawLocal.draw.toolbar.buttons.polygon = 'Add turf: draw a polygon (draw more shapes to add more areas to the same field)';
+L.drawLocal.draw.toolbar.buttons.rectangle = 'Add turf: draw a rectangle (draw more shapes to add more areas to the same field)';
 
 // Start drawing one excluded area (used by the map's ✂ buttons and the sidebar buttons).
 function startExcluding(map, kind) {
@@ -48,19 +56,20 @@ function startExcluding(map, kind) {
   return tool;
 }
 
-// A small map toolbar with the two ✂ Exclude buttons, placed under the drawing tools.
+// A small map toolbar with the two Exclude (−) buttons, placed under the drawing tools.
+// 2026-11-27: order polygon then rectangle (same as the drawing tools); icons in App.css.
 function excludeControl(onClick) {
   const control = L.control({ position: 'topleft' });
   control.onAdd = () => {
     const bar = L.DomUtil.create('div', 'leaflet-bar exclude-control');
-    for (const [kind, label, title] of [
-      ['rectangle', '✂▭', 'Exclude a rectangle inside the outline (not turf, e.g. a dirt infield)'],
-      ['polygon', '✂⬠', 'Exclude a polygon inside the outline (not turf, e.g. a track or path)'],
+    for (const [kind, title] of [
+      ['polygon', 'Exclude a polygon inside the outline (not turf, e.g. a track or path)'],
+      ['rectangle', 'Exclude a rectangle inside the outline (not turf, e.g. a dirt infield)'],
     ]) {
-      const button = L.DomUtil.create('a', '', bar);
+      const button = L.DomUtil.create('a', `exclude-${kind}`, bar);
       button.href = '#';
-      button.textContent = label;
       button.title = title;
+      button.setAttribute('aria-label', title);
       button.setAttribute('role', 'button');
       L.DomEvent.on(button, 'click', (event) => {
         L.DomEvent.preventDefault(event);
@@ -89,6 +98,38 @@ function describeLayer(layer) {
     },
     // True if two edges cross each other (a "bow tie" shape).
     selfIntersects: layer.intersects(),
+  };
+}
+
+// GeoJSON corners are [longitude, latitude]; Leaflet wants [latitude, longitude].
+function ringToLatLngs(ring) {
+  return ring.slice(0, -1).map(([lon, lat]) => [lat, lon]);
+}
+
+// 2026-11-27: merge overlapping outline shapes into pieces that don't overlap. Enclosed gaps
+// become excluded areas. Returns true if excluded areas were added. Shapes whose edges cross
+// themselves are left alone (the sidebar then asks the user to fix them).
+function mergeOutlineLayers(drawnItems, excludedItems) {
+  const layers = drawnItems.getLayers();
+  if (layers.length < 2 || layers.some((layer) => layer.intersects())) return false;
+  const { geojson, holes } = mergeShapes(layers.map((layer) => layer.toGeoJSON().geometry));
+  drawnItems.clearLayers();
+  for (const ring of outerRings(geojson)) drawnItems.addLayer(L.polygon(ringToLatLngs(ring), SHAPE_STYLE));
+  for (const hole of holes) excludedItems.addLayer(L.polygon(ringToLatLngs(hole.coordinates[0]), EXCLUDE_STYLE));
+  return holes.length > 0;
+}
+
+// 2026-11-27: the whole field (all outline shapes) as the same kind of data describeLayer gives.
+function describeField(drawnItems) {
+  const layers = drawnItems.getLayers();
+  if (layers.length === 1) return { ...describeLayer(layers[0]), parts: 1 };
+  const bounds = drawnItems.getBounds();
+  return {
+    geojson: { type: 'MultiPolygon', coordinates: layers.map((layer) => layer.toGeoJSON().geometry.coordinates) },
+    areaM2: layers.reduce((sum, layer) => sum + L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]), 0),
+    bounds: { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() },
+    selfIntersects: layers.some((layer) => layer.intersects()),
+    parts: layers.length,
   };
 }
 
@@ -180,13 +221,12 @@ export default function MapView({
         onExclusionsChange(excludedItems.getLayers().map(describeLayer));
         return;
       }
-      // A new outline was finished: keep only this one (drawing again = redraw).
-      // Old excluded areas belonged to the old outline, so they are removed too.
-      drawnItems.clearLayers();
-      excludedItems.clearLayers();
+      // A new outline shape was finished. 2026-11-27: it is ADDED to the field (it used to
+      // replace the old outline). Overlapping shapes are merged; excluded areas are kept.
       drawnItems.addLayer(event.layer);
-      onPolygonChange(describeLayer(event.layer));
-      onExclusionsChange([]);
+      const gapsExcluded = mergeOutlineLayers(drawnItems, excludedItems);
+      onPolygonChange(describeField(drawnItems));
+      if (gapsExcluded) onExclusionsChange(excludedItems.getLayers().map(describeLayer));
     });
 
     mapRef.current = map;
@@ -199,16 +239,20 @@ export default function MapView({
 
   // When App switches editing on, show draggable corners.
   // When it switches editing off ("Save shape"), hide them and report the new shape.
+  // 2026-11-27: every shape of the field can be edited; on Save, overlapping shapes are merged.
   useEffect(() => {
-    const layer = drawnItemsRef.current?.getLayers()[0];
-    if (!layer) return;
+    const drawnItems = drawnItemsRef.current;
+    const layers = drawnItems?.getLayers() || [];
+    if (layers.length === 0) return;
     if (editing) {
-      layer.editing.enable();
-    } else if (layer.editing.enabled()) {
-      layer.editing.disable();
-      onPolygonChange(describeLayer(layer));
+      layers.forEach((layer) => layer.editing.enable());
+    } else if (layers.some((layer) => layer.editing.enabled())) {
+      layers.forEach((layer) => layer.editing.disable());
+      const gapsExcluded = mergeOutlineLayers(drawnItems, excludedItemsRef.current);
+      onPolygonChange(describeField(drawnItems));
+      if (gapsExcluded) onExclusionsChange(excludedItemsRef.current.getLayers().map(describeLayer));
     }
-  }, [editing, onPolygonChange]);
+  }, [editing, onPolygonChange, onExclusionsChange]);
 
   // 2. When App clears the outline or the exclusions, erase them from the map too.
   useEffect(() => {
@@ -239,18 +283,18 @@ export default function MapView({
   // 5. Draw a saved field (from the account history) as if the user had just drawn it.
   useEffect(() => {
     if (!loadRequest || !mapRef.current) return;
-    // GeoJSON corners are [longitude, latitude]; Leaflet wants [latitude, longitude].
-    const toLatLngs = (geometry) => geometry.coordinates[0].slice(0, -1).map(([lon, lat]) => [lat, lon]);
-    const outline = L.polygon(toLatLngs(loadRequest.geometry), SHAPE_STYLE);
+    // 2026-11-27: a saved field can have several pieces (MultiPolygon): draw each one.
     drawnItemsRef.current.clearLayers();
     excludedItemsRef.current.clearLayers();
-    drawnItemsRef.current.addLayer(outline);
-    for (const shape of loadRequest.exclusions) {
-      excludedItemsRef.current.addLayer(L.polygon(toLatLngs(shape), EXCLUDE_STYLE));
+    for (const ring of outerRings(loadRequest.geometry)) {
+      drawnItemsRef.current.addLayer(L.polygon(ringToLatLngs(ring), SHAPE_STYLE));
     }
-    onPolygonChange(describeLayer(outline));
+    for (const shape of loadRequest.exclusions) {
+      excludedItemsRef.current.addLayer(L.polygon(ringToLatLngs(shape.coordinates[0]), EXCLUDE_STYLE));
+    }
+    onPolygonChange(describeField(drawnItemsRef.current));
     onExclusionsChange(excludedItemsRef.current.getLayers().map(describeLayer));
-    mapRef.current.fitBounds(outline.getBounds(), { maxZoom: 18 });
+    mapRef.current.fitBounds(drawnItemsRef.current.getBounds(), { maxZoom: 18 });
   }, [loadRequest, onPolygonChange, onExclusionsChange]);
 
   // 6. Show the chosen analysis picture (NDVI, NDMI, or true color) over the field.

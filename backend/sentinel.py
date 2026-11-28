@@ -113,8 +113,12 @@ def pixel_size_for_bbox(west: float, south: float, east: float, north: float):
 
 
 def geometry_bbox(geometry):
-    """The smallest box (west, south, east, north) around a GeoJSON Polygon."""
-    ring = geometry["coordinates"][0]
+    """The smallest box (west, south, east, north) around a GeoJSON Polygon.
+    Since 2026-11-27 also a MultiPolygon (a field in several pieces): the box around all pieces."""
+    if geometry.get("type") == "MultiPolygon":
+        ring = [point for part in geometry["coordinates"] for point in part[0]]
+    else:
+        ring = geometry["coordinates"][0]
     lons = [point[0] for point in ring]
     lats = [point[1] for point in ring]
     return min(lons), min(lats), max(lons), max(lats)

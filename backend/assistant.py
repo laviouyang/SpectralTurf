@@ -26,7 +26,8 @@ Photos (added 2026-11-22, CHANGED 2026-11-26 at the student's request): the user
 photo. It is NO LONGER sent to Gemini. The server runs our own photo classifier on it
 (photo_classifier.py: re-saved without GPS/EXIF data, never stored) and Gemini only gets the
 RESULT through the classify_photo tool. Approved rule (2026-11-26): the answer may say which
-category the photo "looks most like", always with "not a diagnosis - confirm with an expert",
+category the photo "looks most like", always saying it is a "preliminary AI result" and to confirm
+with a turf expert (wording changed 2026-11-26 with the mentor; was "not a diagnosis"),
 and never names a specific disease or pest beyond our categories (checked in code).
 
 Privacy: Gemini only ever sees field DATA (numbers, dates, labels like "field-1").
@@ -65,14 +66,14 @@ MAX_PHOTO_PIXELS = 50_000_000          # refuses absurd "image bombs"
 PHOTO_SIDE = 1024                      # the photo Gemini sees is at most 1024 px wide/high
 PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
 
-UI_LABEL = "AI-generated explanation based on SpectralTurf data. Confirm in person."
-NOT_SET_UP = ("Ask SpectralTurf is not available right now: the server has no working Gemini key. "
-              "Everything else in SpectralTurf still works.")
-BLOCKED = ("Sorry, the AI's answer did not pass SpectralTurf's safety checks (numbers must come "
-           "from SpectralTurf data; no watering advice or causes), so it is not shown. "
+UI_LABEL = "AI-generated explanation based on SpectralTurf AI data. Confirm in person."
+NOT_SET_UP = ("Ask SpectralTurf AI is not available right now: the server has no working Gemini key. "
+              "Everything else in SpectralTurf AI still works.")
+BLOCKED = ("Sorry, the AI's answer did not pass SpectralTurf AI's safety checks (numbers must come "
+           "from SpectralTurf AI data; no watering advice or causes), so it is not shown. "
            "Try asking more simply, or use the panels above.")
 
-SYSTEM_PROMPT = """You are "Ask SpectralTurf", the assistant inside SpectralTurf AI, a student-built
+SYSTEM_PROMPT = """You are "Ask SpectralTurf AI", the assistant inside SpectralTurf AI, a student-built
 app that uses Sentinel-2 satellite images and weather to suggest which grass sports fields may
 warrant an in-person inspection.
 
@@ -97,12 +98,13 @@ Rules (always follow them):
 8. NDVI (greenness) uses 10 m pixels; NDMI (moisture) uses 20 m pixels, so never imply finer
    detail. Thresholds and rules in the app are project choices, not published standards.
 9. Keep answers short (about 150 words or less), in plain language for a non-expert.
-10. If the question is not about the user's fields or SpectralTurf, say you can only help with those.
+10. If the question is not about the user's fields or SpectralTurf AI, say you can only help with those.
 11. Photos: you can NOT see photos. If the context says a photo is attached, call classify_photo to
    get SpectralTurf's photo classifier result (a percentage for each category, the top category, and
    whether it is "Uncertain"). Explain it ONLY with this wording: "The photo looks most like <category>
-   (<percent>%) - not a diagnosis, confirm with an expert." If it is Uncertain, say the photo check is
-   uncertain, to inspect in person, and that it is not a diagnosis. Use only the category names from the
+   (<percent>%). Preliminary AI result - it can be wrong. Confirm with a turf expert before treating." If it is Uncertain, say the photo check is
+   uncertain, to inspect in person, and that it is a preliminary AI result to confirm with a turf
+   expert. Use only the category names from the
    tool result; never name a specific disease, fungus or pest, and never say what caused it. Mention any
    notes in the result (for example winter dormancy). You may compare it with the chosen field's
    satellite results from the other tools (for example "the satellite image of <date> also showed lower
@@ -143,7 +145,7 @@ class RateLimiter:
         if self.day != today:
             self.day, self.day_count = today, 0
         if self.day_count >= self.per_day:
-            raise AssistantError("Ask SpectralTurf has reached its daily limit. Please try again tomorrow.")
+            raise AssistantError("Ask SpectralTurf AI has reached its daily limit. Please try again tomorrow.")
         times.append(now)
         self.day_count += 1
 
@@ -432,7 +434,7 @@ def tool_classify_photo(ctx, args):
             "uncertain": r["uncertain"], "answer": r["answer"],
             "uncertain_rule": f"Uncertain when the top category is below {r['uncertain_cutoff_percent']}% "
                               "(a project choice made on training photos).",
-            "required_wording": "looks most like <category> - not a diagnosis, confirm with an expert",
+            "required_wording": "looks most like <category> (<percent>%). Preliminary AI result - it can be wrong. Confirm with a turf expert before treating.",
             "notes": r["notes"], "test_accuracy": r.get("accuracy")}
 
 
@@ -455,7 +457,7 @@ TOOLS = {
                                       "(logged-in users only).", None),
     "classify_photo": (tool_classify_photo,
                        "SpectralTurf's photo classifier result for the photo attached to this question: "
-                       "which category it looks most like (not a diagnosis), with a percentage for each.",
+                       "which category it looks most like (a preliminary AI result), with a percentage for each.",
                        PHOTO_PARAM),
     "get_field_history": (tool_get_field_history,
                           "History of a field: saved analyses and clear satellite images of the last 60 days.",
@@ -570,8 +572,8 @@ def photo_problems(answer, used):
     names = [n for r in results for n in r["categories_percent"]]
     low = answer.lower()
     mentions = PHOTO_WORDS_RE.search(answer) or any(n.lower() in low for n in names)
-    if mentions and not ("not a diagnosis" in low and "expert" in low):
-        return ["it describes the photo result without 'not a diagnosis' and 'confirm with an expert'"]
+    if mentions and not ("preliminary" in low and "expert" in low):  # wording changed 2026-11-26
+        return ["it describes the photo result without 'preliminary AI result' and 'confirm with a turf expert'"]
     return []
 
 
@@ -717,7 +719,7 @@ def ask(question, ctx, call=None, photo=None):
             "Your answer broke SpectralTurf's rules: " + "; ".join(problems) + ". Rewrite it. Use only "
             "numbers and dates copied from tool results (call tools again if needed); if the data is "
             "missing, say 'not enough data'. No watering advice, no causes, no disease names. For a "
-            "photo: 'looks most like <category> - not a diagnosis, confirm with an expert'."}]})
+            "photo: 'looks most like <category> (<percent>%). Preliminary AI result - it can be wrong. Confirm with a turf expert before treating.'."}]})
         answer = agent_loop(contents, ctx, call, used)
         sources = [json.dumps(result) for _, result in used] + [intro, question, SYSTEM_PROMPT]
         problems = (rule_problems(answer, sources) + photo_problems(answer, used)) if answer else ["the answer was empty"]

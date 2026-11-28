@@ -43,7 +43,7 @@ export function LoginForm({ onUserChange }) {
     <form className="account-form" onSubmit={handleSubmit}>
       <p className="muted">
         Optional. With an account you can save fields under a name and use My Fields, the AI
-        checks and Ask AI.
+        checks and AI Diagnosis.
       </p>
       <label>
         Username

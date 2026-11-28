@@ -25,7 +25,7 @@ const PRESETS = [
   'How reliable is this result?',
 ];
 const MAX_CHARS = 500; // the backend refuses longer questions
-const NOTE = 'AI-generated explanation based on SpectralTurf data. Confirm in person.';
+const NOTE = 'AI-generated explanation based on SpectralTurf AI data. Confirm in person.';
 const TOOL_NAMES = {
   get_my_fields: 'your fields',
   get_latest_analysis: 'latest analysis',
@@ -96,9 +96,9 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
           <>Ask about {user ? 'your saved fields or ' : ''}the field on the map
           {user ? '' : ' (log in to ask about your saved fields)'}</>
         )}, as of {asOf}. Answers use only
-        SpectralTurf data; the AI never gives watering amounts or names a cause. Your question and
+        SpectralTurf AI data; the AI never gives watering amounts or names a cause. Your question and
         field data are sent to Google Gemini (no username, no field names, no map location).
-        A photo is NOT sent to Gemini: SpectralTurf&apos;s own photo AI checks it on our server
+        A photo is NOT sent to Gemini: SpectralTurf AI&apos;s own photo AI checks it on our server
         (hidden GPS data removed, never stored) and Gemini only gets that result. Please don&apos;t
         type personal information or send photos of people.
       </p>
@@ -142,8 +142,9 @@ export default function AskSpectralTurf({ geometry, exclude, start, end, asOf, u
                 <ReadAloud text={m.reply.answer} />
                 {m.reply.photo_used && (
                   <p className="muted">
-                    The photo was checked by SpectralTurf&apos;s photo AI (&ldquo;looks most like&rdquo;):
-                    not a diagnosis — confirm with an expert. The photo is not a measurement; numbers
+                    The photo was checked by SpectralTurf AI&apos;s photo AI (&ldquo;looks most like&rdquo;):
+                    preliminary AI result — it can be wrong; confirm with a turf expert before treating.
+                    The photo is not a measurement; numbers
                     come from satellite data.
                   </p>
                 )}

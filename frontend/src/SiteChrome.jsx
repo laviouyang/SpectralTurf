@@ -11,9 +11,9 @@ export const GITHUB_URL = 'https://github.com/laviouyang/SpectralTurf';
 
 export function Brand() {
   return (
-    <Link to="/" className="brand" aria-label="SpectralTurf home">
+    <Link to="/" className="brand" aria-label="SpectralTurf AI home">
       <Logo size={32} />
-      <span className="brand-name">SpectralTurf</span>
+      <span className="brand-name">SpectralTurf AI</span>
     </Link>
   );
 }
@@ -42,8 +42,7 @@ export function SiteNav() {
         </button>
         <nav id="site-menu" className={`nav-menu ${menuOpen ? 'open' : ''}`} aria-label="Main">
           <div className="nav-links">
-            <Link to="/#how" onClick={close}>How it works</Link>
-            <Link to="/#ai" onClick={close}>AI</Link>
+            {/* 2026-11-27 (student): only "About" in the top bar */}
             <Link to="/about" onClick={close}>About</Link>
           </div>
           <div className="nav-actions">
@@ -55,7 +54,7 @@ export function SiteNav() {
             ) : (
               <Link to="/login" className="btn btn-ghost" onClick={close}>Log in</Link>
             )}
-            <Link to={user ? '/app' : '/login'} className="btn btn-primary" onClick={close}>Open the app</Link>
+            <Link to={user ? '/app' : '/login'} className="btn btn-primary" onClick={close}>Get started</Link>
           </div>
         </nav>
       </div>
@@ -70,14 +69,15 @@ export function SiteFooter() {
         <div>
           <Brand />
           <p className="footer-disclaimer">
-            Decision support, not a diagnosis or irrigation controller. A person always makes the
-            final call after looking at the field.
+            Decision support for sports-field managers and grounds crews, not an irrigation
+            controller. Photo AI results are preliminary: confirm with a turf expert before treating.
+            A person always makes the final call after looking at the field.
           </p>
         </div>
         <div>
           <h2 className="footer-heading">Explore</h2>
           <ul className="footer-links">
-            <li><Link to="/app">Open the app</Link></li>
+            <li><Link to="/app">Get started</Link></li>
             <li><Link to="/#how">How it works</Link></li>
             <li><Link to="/about">About &amp; methodology</Link></li>
             <li>
@@ -105,6 +105,10 @@ export function SiteFooter() {
             <li>
               Satellite photo for drawing:{' '}
               <a href="https://www.esri.com/" target="_blank" rel="noreferrer">Esri World Imagery</a>
+            </li>
+            <li>
+              Photo AI image features: CLIP ViT-B/32 by{' '}
+              <a href="https://github.com/openai/CLIP" target="_blank" rel="noreferrer">OpenAI</a> (MIT license)
             </li>
           </ul>
         </div>

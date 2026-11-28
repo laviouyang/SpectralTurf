@@ -86,7 +86,8 @@ check("9. a real JPEG -> 200 with all 6 categories", r.status_code == 200 and le
 check("10. the percentages add up to exactly 100", sum(c["percent"] for c in result["classes"]) == 100)
 top = max(result["classes"], key=lambda c: c["percent"])
 check("11. the top category is the biggest percentage", result["top_class"]["percent"] == top["percent"])
-check("12. every answer says 'Not a diagnosis — confirm with an expert.'", pc.NOT_A_DIAGNOSIS in result["notes"])
+check("12. every answer says 'Preliminary AI result — ... Confirm with a turf expert ...'",
+      pc.NOT_A_DIAGNOSIS in result["notes"] and pc.NOT_A_DIAGNOSIS.startswith("Preliminary AI result"))
 check("13. the photo is never stored (no new files in backend/)", sorted(os.listdir(".")) == files_before)
 check("14. 'How accurate is this?' uses the real test results saved with the model",
       result["accuracy"]["test_photos"] == 379 and 0 < result["accuracy"]["accuracy_percent"] <= 100)
@@ -142,23 +143,26 @@ check("22. classify_photo gives only the result: percentages, top category, Unce
       tool["top_category"] == "Fungal disease" and tool["top_percent"] == 90 and tool["uncertain"] is False
       and sum(tool["categories_percent"].values()) == 100)
 
-good = "The photo looks most like Fungal disease (90%) - not a diagnosis, confirm with an expert. Check it in person."
+good = "The photo looks most like Fungal disease (90%). Preliminary AI result - it can be wrong. Confirm with a turf expert before treating. Check it in person."
 fake = FakeGemini(tool_call("classify_photo", photo="attached"), text(good))
 reply = assistant.ask("What does my photo show?", assistant.Context(True, [], None, None, date(2026, 7, 1)),
                       call=fake, photo=fungal)
-check("23. approved wording ('looks most like ... not a diagnosis, confirm with an expert') passes",
+check("23. approved wording ('looks most like ... Preliminary AI result ... turf expert') passes",
       reply["status"] == "ok" and reply["answer"] == good and "classify_photo" in reply["tools_used"])
 bare = text("The photo looks most like Fungal disease (90%). Check it in person.")
 reply = assistant.ask("What does my photo show?", assistant.Context(True, [], None, None, date(2026, 7, 1)),
                       call=FakeGemini(tool_call("classify_photo"), bare, tool_call("classify_photo"), bare), photo=fungal)
-check("24. a photo result WITHOUT 'not a diagnosis' / 'expert' is blocked", reply["status"] == "blocked")
-named = text("The photo looks most like Fungal disease (90%), probably anthracnose - not a diagnosis, "
-             "confirm with an expert.")
+check("24. a photo result WITHOUT 'preliminary' / 'expert' is blocked", reply["status"] == "blocked")
+old = text("The photo looks most like Fungal disease (90%) - not a diagnosis.")
+reply = assistant.ask("What does my photo show?", assistant.Context(True, [], None, None, date(2026, 7, 1)),
+                      call=FakeGemini(tool_call("classify_photo"), old, tool_call("classify_photo"), old), photo=fungal)
+check("24b. the OLD wording alone ('not a diagnosis', no expert) is blocked too", reply["status"] == "blocked")
+named = text("The photo looks most like Fungal disease (90%), probably anthracnose. Preliminary AI result - it can be wrong. Confirm with a turf expert before treating.")
 reply = assistant.ask("Which disease is it?", assistant.Context(True, [], None, None, date(2026, 7, 1)),
                       call=FakeGemini(tool_call("classify_photo"), named, tool_call("classify_photo"), named), photo=fungal)
 check("25. naming a specific disease beyond our categories (anthracnose) is blocked", reply["status"] == "blocked")
 check("26. ...and so are pest names (grubs)", assistant.SPECIFIC_NAME_RE.search("It may have grubs.") is not None)
-made_up = text("The photo looks most like Fungal disease (95%) - not a diagnosis, confirm with an expert.")
+made_up = text("The photo looks most like Fungal disease (95%). Preliminary AI result - it can be wrong. Confirm with a turf expert before treating.")
 reply = assistant.ask("What does my photo show?", assistant.Context(True, [], None, None, date(2026, 7, 1)),
                       call=FakeGemini(tool_call("classify_photo"), made_up, tool_call("classify_photo"), made_up),
                       photo=fungal)
@@ -168,7 +172,8 @@ check("27. a percentage that is not in the tool result (95% instead of 90%) is b
 import base64  # noqa: E402
 real_call = assistant.call_gemini
 fake = FakeGemini(tool_call("classify_photo", photo="attached"),
-                  text("The photo check is uncertain - not a diagnosis, confirm with an expert or inspect in person."))
+                  text("The photo check is uncertain - a preliminary AI result; inspect in person and confirm "
+                       "with a turf expert."))
 assistant.call_gemini = fake
 assistant.limiter = assistant.RateLimiter()
 try:

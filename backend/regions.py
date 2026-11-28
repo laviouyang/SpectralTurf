@@ -36,8 +36,12 @@ def point_in_ring(lon, lat, ring):
 
 
 def center_of(geometry):
-    """The middle of a GeoJSON Polygon's bounding box: good enough to tell which region a field is in."""
-    ring = geometry["coordinates"][0]
+    """The middle of a GeoJSON Polygon's bounding box: good enough to tell which region a field is in.
+    Since 2026-11-27 also a MultiPolygon (a field in several pieces): the box around all pieces."""
+    if geometry.get("type") == "MultiPolygon":
+        ring = [p for part in geometry["coordinates"] for p in part[0]]
+    else:
+        ring = geometry["coordinates"][0]
     lons = [p[0] for p in ring]
     lats = [p[1] for p in ring]
     return (min(lons) + max(lons)) / 2, (min(lats) + max(lats)) / 2

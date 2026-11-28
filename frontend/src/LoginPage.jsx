@@ -21,7 +21,7 @@ export default function LoginPage() {
       <SiteNav />
       <main className="section container login-page">
         <div className="login-card">
-          <h1>{user ? 'You are logged in' : 'Log in to SpectralTurf'}</h1>
+          <h1>{user ? 'You are logged in' : 'Log in to SpectralTurf AI'}</h1>
           {user === undefined && <p className="muted">Checking…</p>}
           {user === null && (
             <>
@@ -31,7 +31,7 @@ export default function LoginPage() {
                 <br />
                 <span className="muted">
                   Without an account you can still draw and analyze a field. My Fields, the AI checks
-                  and Ask AI need an account.
+                  and AI Diagnosis need an account.
                 </span>
               </p>
             </>
@@ -42,7 +42,7 @@ export default function LoginPage() {
                 Logged in as <strong>{user.username}</strong>.
               </p>
               <div className="button-row">
-                <Link to="/app" className="btn btn-primary">Open the app</Link>
+                <Link to="/app" className="btn btn-primary">Get started</Link>
                 <button
                   type="button"
                   className="secondary"

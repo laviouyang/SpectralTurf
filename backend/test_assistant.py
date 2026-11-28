@@ -285,7 +285,7 @@ with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as folder:
     check("35. logged in: the endpoint answers from Alice's own fields only",
           r.status_code == 200 and [f["field_id"] for f in result["fields"]] == ["screen", "field-1", "field-2"])
     check("36. the answer carries the 'Confirm in person' label",
-          r.json()["label"] == "AI-generated explanation based on SpectralTurf data. Confirm in person.")
+          r.json()["label"] == "AI-generated explanation based on SpectralTurf AI data. Confirm in person.")
     assistant.limiter = assistant.RateLimiter(per_minute=2)
     assistant.call_gemini = lambda contents: text("Not enough data.")
     codes = [client.post("/api/ai/ask", json={"question": "Hi", "as_of": "2026-08-15"}, headers=auth_a).status_code

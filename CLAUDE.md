@@ -152,6 +152,40 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   Chrome (ports 8001/5175, throwaway DB, deleted): upload -> Uncertain + bars + notes + accuracy.
   NOT verified: a real Gemini answer with a photo (Gemini returned 503 "busy" twice), camera button
   on a phone, Render memory/onnxruntime install.
+- 2026-11-26 later (student + mentor, on `version-2`): tab "Ask AI" -> "AI Diagnosis" (same id 'ask');
+  inside it "Check a photo" panel FIRST, then "Ask SpectralTurf — AI agent" panel (was a card), then a
+  disclaimer at the bottom (.ai-disclaimer, PhotoCheck.AI_DISCLAIMER). Photo panel removed from AI
+  Check; AI Check titles lost "1."/"2.". photo_classifier.NOT_A_DIAGNOSIS (name kept) = new wording;
+  assistant photo check now needs "preliminary" + "expert" (prompt rule 11, required_wording, retry
+  text). Other "not a diagnosis" text (weather check, site footer, README) NOT changed.
+  test_photo_classify 32/32 (24b: old wording alone blocked). Checked in Chrome (8001/5175, throwaway DB).
+  HOMEPAGE/ABOUT/FOOTER (student): target audience named = sports-field managers, park and school
+  grounds crews, city parks departments (new homepage "Who it's for" section; "Built for" only, no
+  claim they use it); photo AI added (feature card, How it works step 4, trust block with the real
+  photo_classifier_v1.json results + limits; About "The photo AI" section, assistant/privacy updated:
+  photos not sent to Gemini; CLIP credited). Checked in Chrome desktop + 390 px iframe.
+- 2026-11-27 (student, on `version-2`): site tweaks ("Get started" buttons, nav = About only, short
+  About page, water-stats section removed, darker selected region, "Plains" label, name "SpectralTurf
+  AI" in all user-visible text; code names/storage keys/comments unchanged).
+  FIELD IN SEVERAL SHAPES (student: parks have fields with walkways between; excluding every walkway
+  was inconvenient): drawing another outline shape now ADDS it to the field (used to replace it;
+  "Clear area" starts over; exclusions are kept). frontend/src/fieldShapes.js merges overlapping/
+  touching shapes with polygon-clipping 0.15.7 (MIT, exact pin, a runtime dependency); enclosed gaps
+  become excluded areas. GeoJSON: 1 shape = Polygon (unchanged), several = MultiPolygon. Backend
+  NEW field_shape.py + main.clean_field (used for every FIELD outline: analyze, fields, weather-check,
+  what-if, ask; exclusions still clean_polygon): max 20 pieces, each piece = old Polygon rules,
+  pieces must not overlap (touching OK). sentinel.geometry_bbox, predict.field_geometry(_multi) +
+  centroid, regions.center_of, turfRegions.regionOfPolygon, region.polygonCenter handle MultiPolygon.
+  Map buttons in order: draw polygon (+), draw rectangle (+), exclude polygon (-), exclude rectangle
+  (-) (SVG icons in App.css, badge bottom right). Tests backend/test_multipart.py 25/25 +
+  frontend/scripts/test_field_shapes.mjs 8/8 (writes backend/field_shape_cases.json: 300 random
+  merged fields, all accepted by the backend). REAL API (2026-08-05): grass_A 40 px NDVI 0.628 +
+  grass_B 30 px 0.754 -> as one 2-piece field 70 px (130 in box; gap not counted), mean 0.682 =
+  weighted average; AI weather check on the 2-piece field OK (Statistical API). Checked in Chrome
+  (8001/5175, throwaway DB deleted): 2 rectangles -> 2 pieces, overlapping rectangle merged, exclude,
+  Analyze (image only inside pieces), Save -> 1 field (MultiPolygon), Edit -> overlap merged on
+  Save shape, Clear, Show on map restores pieces, AI Weather Check on saved 2-piece field, polygon
+  tool adds a 3rd piece. NOT tested: a real phone; Ask with real Gemini on a multi-piece field.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,
@@ -167,10 +201,11 @@ python test_assistant.py; python test_limits.py
 python test_ask_focus.py; python test_analyze_save.py; python test_save_field.py   # version-2 only
 python test_ai_login.py; python test_regions.py   # version-2 only
 python test_field_list.py; python test_photo_classify.py   # added 2026-11-26
+python test_multipart.py   # added 2026-11-27 (run node scripts/test_field_shapes.mjs first if fieldShapes.js changed)
 cd ..
 python ml/test_get_fields.py; python ml/test_get_ndvi_history.py; python ml/test_get_weather.py
 python ml/test_dataset_and_model.py; python ml/test_dataset_v3.py
-cd frontend; node scripts/test_field_picker.mjs; npm.cmd run build
+cd frontend; node scripts/test_field_picker.mjs; node scripts/test_field_shapes.mjs; npm.cmd run build
 ```
 (Git Bash: set PYTHONIOENCODING=utf-8 first, or printing can crash on this PC's GBK encoding.)
 
@@ -191,6 +226,9 @@ fetches real Sentinel-2 L2A data → computes NDVI and NDMI → shows results, o
 date, data quality, and limitations. It prioritizes areas that "may warrant inspection".
 It must NOT claim to diagnose disease, prove drought, prescribe watering, or control irrigation.
 PHOTO RULE (approved by the student 2026-11-26, exact wording): the app may show which photo category a picture "looks most like," as long as it says it is not a diagnosis and to confirm with an expert.
+PHOTO RULE WORDING CHANGED (2026-11-26, student + mentor): the tab is named "AI Diagnosis"; the photo
+disclaimer is now "Preliminary AI result — it can be wrong. Confirm with a turf expert before treating."
+(Claude pointed out the name clashes with "not a diagnosis"; the mentor chose to keep the name.)
 
 ## Non-negotiable rules
 - Never fabricate imagery, dates, index values, or weather. On failure, show an honest

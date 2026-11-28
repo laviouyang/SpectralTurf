@@ -48,7 +48,7 @@ async function request(path, { method = 'GET', body } = {}) {
     });
   } catch {
     throw new Error(
-      'Could not reach the SpectralTurf backend. Make sure it is running ' +
+      'Could not reach the SpectralTurf AI backend. Make sure it is running ' +
         '(in the backend folder: uvicorn main:app --reload).'
     );
   }
@@ -159,7 +159,7 @@ export async function classifyPhoto(blob) {
   try {
     response = await fetch(`${API_URL}/api/photo/classify`, { method: 'POST', headers, body: blob });
   } catch {
-    throw new Error('Could not reach the SpectralTurf backend. Make sure it is running.');
+    throw new Error('Could not reach the SpectralTurf AI backend. Make sure it is running.');
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
