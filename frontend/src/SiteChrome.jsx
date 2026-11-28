@@ -42,8 +42,11 @@ export function SiteNav() {
         </button>
         <nav id="site-menu" className={`nav-menu ${menuOpen ? 'open' : ''}`} aria-label="Main">
           <div className="nav-links">
-            {/* 2026-11-27 (student): only "About" in the top bar */}
+            {/* 2026-11-27 later (student): How it works, Features (homepage section), About, Sources */}
+            <Link to="/how-it-works" onClick={close}>How it works</Link>
+            <Link to="/#features" onClick={close}>Features</Link>
             <Link to="/about" onClick={close}>About</Link>
+            <Link to="/sources" onClick={close}>Sources</Link>
           </div>
           <div className="nav-actions">
             {user ? (
@@ -78,8 +81,10 @@ export function SiteFooter() {
           <h2 className="footer-heading">Explore</h2>
           <ul className="footer-links">
             <li><Link to="/app">Get started</Link></li>
-            <li><Link to="/#how">How it works</Link></li>
-            <li><Link to="/about">About &amp; methodology</Link></li>
+            <li><Link to="/how-it-works">How it works</Link></li>
+            <li><Link to="/#features">Features</Link></li>
+            <li><Link to="/about">About</Link></li>
+            <li><Link to="/sources">Sources</Link></li>
             <li>
               <a href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <Icon name="github" size={16} /> Source code on GitHub

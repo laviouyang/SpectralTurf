@@ -186,6 +186,15 @@ beginner-readable, and scientifically honest. Do not overengineer. Explain thing
   Analyze (image only inside pieces), Save -> 1 field (MultiPolygon), Edit -> overlap merged on
   Save shape, Clear, Show on map restores pieces, AI Weather Check on saved 2-piece field, polygon
   tool adds a 3rd piece. NOT tested: a real phone; Ask with real Gemini on a multi-piece field.
+- 2026-11-27 later (student, on `version-2`): top nav = How it works, Features, About, Sources.
+  NEW pages HowItWorksPage.jsx (/how-it-works: the 4 steps from the homepage + methodology moved from
+  About: satellite data, inspection flag, weather AI, photo AI, assistant) and SourcesPage.jsx
+  (/sources: data, science refs Rouse 1974 / Gao 1996 / Tucker 1979, region sources from
+  turfRegions.json, AI models, links to results files on GitHub main, software). "Features" =
+  link to the homepage section #features (was #ai; scrolls also when opened from another page).
+  Homepage: steps section + "Built on open data" strip removed. About = project, regions (sources
+  -> Sources page), limitations, privacy, GitHub. Footer Explore links updated. Checked in Chrome
+  (port 5175, no backend): nav, Features scroll from home and from /sources, pages, 390 px menu.
 - Still to do: Stage 10 Step 11 (README update, slides, demo video); student approval of
   `version-2`; push of the renamed branch (ask first); real-phone test.
 - All tests passed on 2026-11-25 (version-2): test_indices, test_accounts 16, test_predict 58,

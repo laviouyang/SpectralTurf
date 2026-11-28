@@ -1,18 +1,17 @@
 /*
  * AboutPage.jsx - "/about": how SpectralTurf works and what it can't do (added 2026-11-23).
  *
+ * 2026-11-27 later (student request): the methodology (satellite data, inspection flag, AI) moved
+ * to HowItWorksPage.jsx and the sources to SourcesPage.jsx; this page is about the project itself.
  * 2026-11-27 (student request): made SHORT. Things already on the homepage (who it's for, the
  * steps, the feature list, the test results, the grass lists per region) and in the footer (data
  * credits) are not repeated here. Thresholds are labeled as this project's choices.
  */
 import { Link } from './router.jsx';
-import { SiteFooter, SiteNav } from './SiteChrome.jsx';
-import { DATA as REGION_DATA } from './turfRegions.js';
+import { GITHUB_URL, SiteFooter, SiteNav } from './SiteChrome.jsx';
 
 const SECTIONS = [
-  ['data', 'Satellite data'],
-  ['rule', 'The inspection flag'],
-  ['ai', 'The AI'],
+  ['project', 'The project'],
   ['regions', 'Grass regions'],
   ['limits', 'Limitations'],
   ['privacy', 'Privacy'],
@@ -26,12 +25,8 @@ export default function AboutPage() {
       <main id="main" className="about">
         <header className="about-hero">
           <div className="container">
-            <p className="eyebrow">About &amp; methodology</p>
-            <h1>How SpectralTurf AI works, and what it can&apos;t do</h1>
-            <p className="lead">
-              A high-school project. It is decision support: it shows where to look, and a person
-              always checks the field before acting.
-            </p>
+            <p className="eyebrow">About</p>
+            <h1>About SpectralTurf AI, and what it can&apos;t do</h1>
           </div>
         </header>
 
@@ -46,74 +41,23 @@ export default function AboutPage() {
           </nav>
 
           <article className="prose">
-            <section id="data">
-              <h2>Satellite data</h2>
-              <ul>
-                <li>Copernicus Sentinel-2 Level-2A images; the least-cloudy image in your dates is used, and its date is always shown.</li>
-                <li>Every pixel is checked for cloud, shadow, snow and no data with Sentinel-2&apos;s own scene classification, and bad pixels are removed.</li>
-                <li>10 m pixels for greenness and color, 20 m for moisture. Pixels are never smoothed.</li>
-                <li>Fewer than 20 clear pixels (a project choice) means &ldquo;Insufficient evidence&rdquo; and no averages.</li>
-              </ul>
-              <dl className="formula-list">
-                <div>
-                  <dt>NDVI: greenness</dt>
-                  <dd><code>(NIR − Red) / (NIR + Red)</code>, bands B08 and B04, 10 m.</dd>
-                </div>
-                <div>
-                  <dt>NDMI: leaf moisture</dt>
-                  <dd><code>(NIR − SWIR) / (NIR + SWIR)</code>, bands B8A and B11, <strong>20 m</strong>.</dd>
-                </div>
-                <div>
-                  <dt>NGRDI: green vs. yellow</dt>
-                  <dd><code>(Green − Red) / (Green + Red)</code>, bands B03 and B04, 10 m (Tucker, 1979).</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section id="rule">
-              <h2>The inspection flag</h2>
-              <p>Skipping the edge pixels, each clear pixel inside your outline gets three checks:</p>
-              <ol>
-                <li><strong>Color:</strong> NGRDI below 0.15 (yellow or pale).</li>
-                <li><strong>Healthy-turf baseline:</strong> NDVI below 0.5 or NDMI below 0.0.</li>
-                <li><strong>Within the field:</strong> NDVI more than 0.20 below the field&apos;s own median.</li>
-              </ol>
+            <section id="project">
+              <h2>The project</h2>
               <p>
-                An area is flagged when at least 5% of pixels (and at least 5 pixels) fail a check; 50% or
-                more flags the whole field.
+                SpectralTurf AI is a high-school project by Yuanzhi (Lavi) Ouyang. It started from one
+                question: can free satellite images tell a grounds crew which part of a big grass field
+                to walk to first?
               </p>
-              <p className="callout">
-                These cutoffs are <strong>this project&apos;s choices</strong>, based on real Colorado
-                sports turf in summer 2026, not published standards.
+              <p>
+                It is <strong>decision support</strong>. It points to where to look and says how sure it
+                is. It does not control irrigation, tell anyone how much to water, or replace a turf
+                expert: photo results are preliminary, and a person always checks the field before
+                acting.
               </p>
-            </section>
-
-            <section id="ai">
-              <h2>The AI</h2>
-              <ul>
-                <li>
-                  <strong>Weather model:</strong> a gradient-boosting model (scikit-learn) learned how
-                  the NDVI of 22 Denver-area fields changed 7–20 days after a clear image, from 38,342
-                  real image pairs (2019–2025) and Open-Meteo weather. It flags an image much lower than
-                  expected (more than twice its typical error), estimates cloudy days (labeled as an
-                  estimate), and only allows What-if weather inside what it saw in training.
-                </li>
-                <li>
-                  <strong>Photo AI:</strong> OpenAI&apos;s CLIP image model turns a photo into 512
-                  numbers, and our own logistic-regression classifier turns those into 6 category
-                  percentages. Below 75% (a project choice) it says &ldquo;Uncertain — inspect in
-                  person&rdquo;. It runs on our server, shrunk to 8-bit weights (same final answer as
-                  the full model for 98.9% of the test photos). Results are preliminary: a turf expert
-                  should confirm.
-                </li>
-                <li>
-                  <strong>Ask SpectralTurf AI:</strong> Google Gemini writes the answers, but only from
-                  read-only tools that return your field&apos;s real results. The server checks every
-                  answer: numbers must come from the tools, and watering amounts, cause claims and
-                  specific disease or pest names are blocked.
-                </li>
-              </ul>
-              <p>Test results for both AI models are on the <Link to="/#trust">homepage</Link>.</p>
+              <p>
+                How each part works is on the <Link to="/how-it-works">How it works</Link> page; every
+                data source and reference is on the <Link to="/sources">Sources</Link> page.
+              </p>
             </section>
 
             <section id="regions">
@@ -121,13 +65,8 @@ export default function AboutPage() {
               <p>
                 The region is only a label; the satellite math is the same everywhere. Only Region 3
                 (Northern &amp; Central Plains) is validated, because the baseline, color cutoff and AI
-                were made from Denver-area fields. The map is our own approximation (layout after the
-                &ldquo;Grass Types USA&rdquo; map by Simple Lawn Solutions, on U.S. Census state shapes),
-                checked against the zone maps of the{' '}
-                <a href={REGION_DATA.sources.framework[0].url} target="_blank" rel="noreferrer">University of Maryland</a>
-                {' '}and{' '}
-                <a href={REGION_DATA.sources.framework[1].url} target="_blank" rel="noreferrer">Kansas State</a>
-                {' '}extensions. It is not an official USDA map.
+                were made from Denver-area fields. The region map is our own approximation, not an official
+                USDA map (sources on the <Link to="/sources#regions">Sources</Link> page).
               </p>
             </section>
 
@@ -150,7 +89,10 @@ export default function AboutPage() {
                 field names, locations or photos. Photos are checked on our server, never stored, and
                 their hidden GPS data is removed first.
               </p>
-              <p><Link to="/app" className="btn btn-primary">Get started</Link></p>
+              <p>
+                The source code is on <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>.
+              </p>
+              <p><Link to="/login" className="btn btn-primary">Get started</Link></p>
             </section>
           </article>
         </div>

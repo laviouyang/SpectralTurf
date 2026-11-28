@@ -957,11 +957,11 @@ button.nav-toggle:hover:not(:disabled) {
 }
 
 /* 2026-11-26: 6 AI feature cards -> rows of 3 (no single card left alone) */
-#ai .feature-grid {
+#features .feature-grid {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 @media (max-width: 760px) {
-  #ai .feature-grid {
+  #features .feature-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -983,4 +983,10 @@ button.nav-toggle:hover:not(:disabled) {
   paint-order: stroke;
   stroke: rgba(0, 0, 0, 0.35);
   stroke-width: 2px;
+}
+
+/* 2026-11-27 later (student): How it works page = the 4 step cards above the methodology;
+   (.section already has scroll-margin-top, so "Features" lands below the sticky nav). */
+.section-steps {
+  padding-top: 0;
 }

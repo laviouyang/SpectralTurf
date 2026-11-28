@@ -9,9 +9,11 @@
  *     (ml_photo/export_onnx.py, 379 test photos, 2026-11-26).
  * 2026-11-26 (student request): photo AI added, and the target audience named instead of "people".
  * 2026-11-27 (student request): app buttons say "Get started"; the water-statistics section removed.
+ * 2026-11-27 later (student request): the 4 steps moved to the How it works page and the
+ *   "Built on open data" strip to the Sources page; the nav's "Features" link scrolls to #features.
  * No testimonials, user counts, or partner logos, because we don't have any.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from './router.jsx';
 import { Icon } from './Icons.jsx';
 import { SiteFooter, SiteNav } from './SiteChrome.jsx';
@@ -67,13 +69,6 @@ const AUDIENCE = [
   { icon: 'list', title: 'City parks departments', text: 'Many fields across a city: the My Fields ranking shows which one to visit first.' },
 ];
 
-const STEPS = [
-  { icon: 'draw', title: 'Draw your field', text: 'Search a park or school in Colorado and outline the turf on the map. Cut out dirt infields and tracks.' },
-  { icon: 'satellite', title: 'Satellite + AI analysis', text: 'SpectralTurf AI downloads the least-cloudy Sentinel-2 image, removes clouds and shadows, and compares greenness and leaf moisture with what the AI expected from recent weather.' },
-  { icon: 'target', title: 'Inspect the right spots first', text: 'The map highlights the areas that may warrant a closer look, so your grounds crew walks to those spots first and sees for themselves.' },
-  { icon: 'camera', title: 'Check a photo on the spot', text: 'Take a photo of the patch. The photo AI says which of 6 categories it looks most like: a preliminary result for a turf expert to confirm.' },
-];
-
 const FEATURES = [
   { icon: 'camera', title: 'Photo AI check', text: 'Upload or take a photo of the turf. It shows which of 6 categories it looks most like, with a percentage for each, or says “Uncertain”.' },
   { icon: 'chart', title: 'AI Expected-vs-Observed Check', text: 'Compares the newest clear image with what the model expected from the weather.' },
@@ -90,6 +85,10 @@ const PRINCIPLES = [
 ];
 
 export default function HomePage() {
+  // Opening "/#features" from another page or a typed address: scroll to that section once drawn.
+  useEffect(() => {
+    if (window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView();
+  }, []);
   return (
     <div className="site">
       <a href="#main" className="skip-link">Skip to content</a>
@@ -111,7 +110,7 @@ export default function HomePage() {
                 <Link to="/login" className="btn btn-primary btn-lg">
                   Get started <Icon name="arrowRight" size={18} />
                 </Link>
-                <Link to="/#how" className="btn btn-secondary btn-lg">See how it works</Link>
+                <Link to="/how-it-works" className="btn btn-secondary btn-lg">See how it works</Link>
               </div>
               <p className="hero-note">Free to try · Validated in Colorado (Denver area) · No account needed to analyze</p>
             </div>
@@ -149,29 +148,11 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ---- How it works ---- */}
-        <section id="how" className="section" aria-labelledby="how-title">
-          <div className="container">
-            <p className="eyebrow">How it works</p>
-            <h2 id="how-title" className="section-title">From a drawn outline to a photo check at the right spot</h2>
-            <ol className="steps-grid steps-4">
-              {STEPS.map((step, i) => (
-                <li className="step-card" key={step.title}>
-                  <span className="step-icon"><Icon name={step.icon} size={28} /></span>
-                  <span className="step-number">Step {i + 1}</span>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
-
         {/* ---- Features ---- */}
-        <section id="ai" className="section section-tint" aria-labelledby="ai-title">
+        <section id="features" className="section section-tint" aria-labelledby="features-title">
           <div className="container">
             <p className="eyebrow">AI features</p>
-            <h2 id="ai-title" className="section-title">AI that explains what it sees, and says what it doesn&apos;t know</h2>
+            <h2 id="features-title" className="section-title">AI that explains what it sees, and says what it doesn&apos;t know</h2>
             <div className="feature-grid">
               {FEATURES.map((f) => (
                 <div className="feature-card" key={f.title}>
@@ -255,16 +236,6 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-          </div>
-        </section>
-
-        {/* ---- Data credits ---- */}
-        <section className="credits-strip" aria-label="Data sources">
-          <div className="container credits-inner">
-            <span className="credits-label">Built on open data</span>
-            <span className="credit">Copernicus Sentinel-2</span>
-            <span className="credit">Open-Meteo</span>
-            <span className="credit">OpenStreetMap</span>
           </div>
         </section>
 
